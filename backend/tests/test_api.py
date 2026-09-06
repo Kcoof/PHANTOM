@@ -1,0 +1,194 @@
+"""PHANTOM backend integration tests — pytest + TestClient (plan.md T061).
+
+Run: backend/.venv/Scripts/python -m pytest tests/ -v
+"""
+from __future__ import annotations
+
+import importlib
+import os
+import sys
+import tempfile
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# isolated data dir per test run (Constitution VII: nothing touches user data)
+_tmp = tempfile.mkdtemp(prefix="phantom-test-")
+os.environ["PHANTOM_DATA_DIR"] = str(Path(_tmp))
+
+import config
+
+config.DATA_DIR = Path(_tmp)
+config.DB_PATH = config.DATA_DIR / "phantom.db"
+config.MITMPROXY_CONFDIR = config.DATA_DIR / "mitmproxy"
+config.ensure_data_dir()
+
+from fastapi.testclient import TestClient
+
+import pytest
+
+import main as app_module
+importlib.reload(app_module)
+
+
+@pytest.fixture(scope="module")
+def client():
+    # context-managed → lifespan runs init_db on the app's own event loop
+    # (the shared aiosqlite connection must live on that loop, not a throwaway one)
+    with TestClient(app_module.app) as c:
+        yield c
+
+
+# --- health & settings -------------------------------------------------------
+
+def test_health(client):
+    r = client.get("/api/health")
+    assert r.status_code == 200
+    assert r.json()["status"] == "ok"
+
+
+def test_settings_seeded(client):
+    r = client.get("/api/settings")
+    assert r.status_code == 200
+    cats = r.json()["categories"]
+    assert cats["proxy"]["proxy_port"] == "8080"
+    assert cats["ai"]["ai_provider"] == "ollama"
+
+
+def test_settings_update_and_reject_unknown(client):
+    r = client.put("/api/settings", json={"values": {"font_size": "14"}})
+    assert r.status_code == 200
+    assert r.json()["categories"]["ui"]["font_size"] == "14"
+    r = client.put("/api/settings", json={"values": {"nope": "1"}})
+    assert r.status_code == 422
+
+
+# --- decoder ------------------------------------------------------------------
+
+def test_decoder_roundtrip(client):
+    enc = client.post("/api/decoder/encode", json={"input": "Hello", "codec": "base64"}).json()
+    assert enc["output"] == "SGVsbG8="
+    dec = client.post("/api/decoder/decode", json={"input": enc["output"], "codec": "base64"}).json()
+    assert dec["output"] == "Hello"
+
+
+def test_decoder_hash_known_vector(client):
+    r = client.post("/api/decoder/hash", json={"input": "Hello", "algorithm": "sha256"})
+    assert r.json()["digest"].startswith("185f8db32271fe25f561a6fc938b2e26")
+
+
+def test_decoder_jwt_and_bad_input(client):
+    jwt = "eyJhbGciOiJub25lIn0.eyJzdWIiOiIxIn0."
+    r = client.post("/api/decoder/decode", json={"input": jwt, "codec": "jwt"})
+    assert r.status_code == 200
+    assert r.json()["output"].count("none") >= 1
+    r = client.post("/api/decoder/decode", json={"input": "zzz", "codec": "hex"})
+    assert r.status_code == 422
+
+
+def test_decoder_auto_detect(client):
+    r = client.post("/api/decoder/auto-detect", json={"input": "SGVsbG8gd29ybGQ="})
+    assert r.status_code == 200
+    assert any(x["codec"] == "base64" for x in r.json()["results"])
+
+
+# --- history + repeater -------------------------------------------------------
+
+def _seed_history_entry() -> int:
+    import sqlite3
+
+    db = sqlite3.connect(config.DB_PATH)
+    cur = db.execute(
+        """INSERT INTO proxy_history (method, scheme, host, port, path, url,
+             request_headers, request_body, status_code, response_headers, response_body)
+           VALUES ('GET', 'https', 'example.test', 443, '/x', 'https://example.test/x',
+             '{}', NULL, 200, '{}', 'ok')"""
+    )
+    db.commit()
+    entry_id = cur.lastrowid
+    db.close()
+    return entry_id
+
+
+def test_history_list_and_detail(client):
+    entry_id = _seed_history_entry()
+    r = client.get("/api/history", params={"search": "example.test"})
+    assert any(e["id"] == entry_id for e in r.json()["items"])
+    r = client.get(f"/api/history/{entry_id}")
+    assert r.status_code == 200
+    assert r.json()["url"] == "https://example.test/x"
+    r = client.get("/api/history/999999")
+    assert r.status_code == 404
+
+
+def test_history_annotations_and_repeater_send(client):
+    entry_id = _seed_history_entry()
+    assert client.post(f"/api/history/{entry_id}/tag", json={"tag": "interesting"}).json()["tags"] == ["interesting"]
+    assert client.post(f"/api/history/{entry_id}/note", json={"note": "check"}).status_code == 200
+    assert client.post(f"/api/history/{entry_id}/highlight", json={"color": "red"}).status_code == 200
+    r = client.post(f"/api/history/{entry_id}/send-to-repeater")
+    assert r.status_code == 200
+    tab_id = r.json()["repeater_tab_id"]
+    tabs = client.get("/api/repeater/tabs").json()
+    assert any(t["id"] == tab_id for t in tabs)
+    assert client.delete(f"/api/repeater/tabs/{tab_id}").json()["deleted"] is True
+
+
+def test_repeater_raw_parse_errors_cleanly(client):
+    tab = client.post(
+        "/api/repeater/tabs",
+        json={"method": "GET", "url": "https://example.test/", "request_headers": {}},
+    ).json()
+    r = client.post(f"/api/repeater/tabs/{tab['id']}/send", json={"raw_request": "not a request"})
+    assert r.status_code in (422, 502)  # parse failure or fetch failure — never a 500 crash
+    client.delete(f"/api/repeater/tabs/{tab['id']}")
+
+
+# --- scanner -------------------------------------------------------------------
+
+def test_scanner_registry_and_passive_scan(client):
+    checks = client.get("/api/scanner/checks").json()
+    types = {c["check_type"] for c in checks}
+    assert {"xss", "sqli", "headers", "cors", "jwt"} <= types
+    r = client.post("/api/scanner/scan", json={"scan_type": "passive"})
+    assert r.status_code == 201
+    scan_id = r.json()["scan_id"]
+    # TestClient runs the app loop; give the scan task a beat
+    import time
+
+    time.sleep(1.0)
+    scan = client.get(f"/api/scanner/scans/{scan_id}").json()
+    assert scan["status"] in ("running", "completed", "paused")
+
+
+def test_active_scan_requires_scope(client):
+    entry_id = _seed_history_entry()
+    r = client.post("/api/scanner/scan", json={"scan_type": "active", "history_ids": [entry_id]})
+    assert r.status_code == 403
+    assert "scope" in r.json()["detail"].lower()
+
+
+def test_scope_rule_crud(client):
+    r = client.post("/api/settings/scope", json={"rule_type": "include", "host_pattern": "*.example.test"})
+    assert r.status_code == 201
+    rule_id = r.json()["id"]
+    rules = client.get("/api/settings/scope").json()
+    assert any(x["id"] == rule_id for x in rules)
+    assert client.delete(f"/api/settings/scope/{rule_id}").json()["deleted"] is True
+
+
+# --- dashboard & ai -------------------------------------------------------------
+
+def test_dashboard_stats_shape(client):
+    r = client.get("/api/dashboard/stats")
+    body = r.json()
+    assert {"total_requests", "findings_by_severity", "top_hosts", "avg_response_time_ms"} <= set(body)
+
+
+def test_ai_status_graceful_offline(client):
+    r = client.get("/api/ai/status")
+    assert r.status_code == 200
+    # no runtime in CI: must report unavailable, not crash
+    assert isinstance(r.json()["available"], bool)
+    r = client.post("/api/ai/chat", json={"message": "hi"})
+    assert r.status_code in (200, 503)

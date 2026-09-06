@@ -177,12 +177,12 @@ priority order; [P] tasks are parallelizable.
 
 **Purpose**: Settings/scope, desktop shell, robustness, tests, docs
 
-- [ ] T058 [P] Implement backend/api/settings_routes.py (settings + scope CRUD) + frontend Settings view (Proxy/Scanner/AI/UI sections + scope rules management, per FR-016/FR-017)
-- [ ] T059 [P] Implement electron/main.ts + preload.ts + electron-builder.yml — spawn backend, load built frontend, lifecycle cleanup
-- [ ] T060 Harden UX: toast notifications on all API errors, full keyboard shortcuts (Ctrl+Shift+I, Ctrl+R, Ctrl+Enter), loading skeletons, view transitions, responsive checks
-- [ ] T061 [P] Backend API integration tests in backend/tests/ (pytest + TestClient): settings, history, decoder, repeater, scanner registry
-- [ ] T062 [P] Complete README.md — setup, quickstart, module guide, authorized-testing statement; scripts/dev.ps1 + scripts/dev.sh
-- [ ] T063 Run full quickstart.md validation (Scenarios A–I) and fix all findings
+- [x] T058 [P] Implement backend/api/settings_routes.py (settings + scope CRUD) + frontend Settings view (Proxy/Scanner/AI/UI sections + scope rules management, per FR-016/FR-017)
+- [x] T059 [P] Implement electron/main.ts + preload.ts + electron-builder.yml — spawn backend, load built frontend, lifecycle cleanup
+- [x] T060 Harden UX: toast notifications on all API errors, full keyboard shortcuts (Ctrl+Shift+I, Ctrl+R, Ctrl+Enter), loading skeletons, view transitions, responsive checks
+- [x] T061 [P] Backend API integration tests in backend/tests/ (pytest + TestClient): settings, history, decoder, repeater, scanner registry
+- [x] T062 [P] Complete README.md — setup, quickstart, module guide, authorized-testing statement; scripts/dev.ps1 + scripts/dev.sh
+- [x] T063 Run full quickstart.md validation (Scenarios A–I) and fix all findings
 
 ---
 

@@ -1,0 +1,25 @@
+appId: io.github.kcoof.phantom
+productName: PHANTOM
+directories:
+  output: release
+files:
+  - electron/dist/**/*
+extraResources:
+  - from: backend
+    to: backend
+    filter:
+      - "**/*"
+      - "!**/.venv/**"
+      - "!**/__pycache__/**"
+      - "!**/*.db"
+win:
+  target: nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+mac:
+  target: dmg
+  category: public.app-category.developer-tools
+linux:
+  target: AppImage
+  category: Development

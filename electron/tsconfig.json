@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "node16",
+    "moduleResolution": "node16",
+    "outDir": "dist",
+    "rootDir": ".",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "sourceMap": false,
+    "typeRoots": ["../frontend/node_modules/@types"],
+    "types": ["node"],
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "electron": ["../frontend/node_modules/electron"]
+    }
+  },
+  "include": ["main.ts", "preload.ts"]
+}

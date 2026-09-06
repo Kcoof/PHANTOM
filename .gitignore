@@ -16,6 +16,7 @@ node_modules/
 dist/
 dist-electron/
 release/
+electron/dist/
 *.local
 
 # Logs & misc

@@ -1,13 +1,16 @@
 {
-  "name": "frontend",
+  "name": "phantom-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "electron:compile": "tsc -p ../electron/tsconfig.json",
+    "electron:dev": "npm run electron:compile && npm run build && concurrently \"npm:dev\" \"wait-on http://localhost:5173 && electron ../electron/dist/main.js\"",
+    "electron:build": "npm run build && npm run electron:compile && electron-builder --config ../electron/electron-builder.yml"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -27,8 +30,12 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.1.0",
+    "concurrently": "^10.0.5",
+    "electron": "^44.2.0",
+    "electron-builder": "^26.15.3",
     "oxlint": "^1.79.0",
     "typescript": "~6.0.2",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "wait-on": "^9.1.0"
   }
 }
