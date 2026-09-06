@@ -167,3 +167,28 @@ async def send_to_repeater(entry_id: int) -> dict:
         ),
     )
     return {"repeater_tab_id": tab_id}
+
+
+class ScanSendIn(BaseModel):
+    checks: list[str] | None = None
+    scan_type: str = "passive"
+
+
+@router.post("/{entry_id}/send-to-scanner", status_code=201)
+async def send_to_scanner(entry_id: int, body: ScanSendIn | None = None) -> dict:
+    row = await database.fetch_one("SELECT id FROM proxy_history WHERE id = ?", (entry_id,))
+    if not row:
+        raise HTTPException(status_code=404, detail="history entry not found")
+    from core.scanner_engine import get_scanner_engine
+
+    body = body or ScanSendIn()
+    try:
+        scan_id = await get_scanner_engine().start_scan(
+            target_url=None,
+            history_ids=[entry_id],
+            scan_type=body.scan_type,
+            selected_checks=body.checks,
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    return {"scan_id": scan_id}

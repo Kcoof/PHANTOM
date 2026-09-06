@@ -42,6 +42,7 @@ interface ProxyStore {
   clearHistory: () => Promise<void>
   handleWsEvent: (event: string, data: unknown) => void
   setLiveTail: (v: boolean) => void
+  analyzeRequest: (id: number, label: string) => Promise<void>
 }
 
 const MAX_ROWS = 2000
@@ -225,4 +226,11 @@ export const useProxyStore = create<ProxyStore>((set, get) => ({
   },
 
   setLiveTail: (v) => set({ liveTail: v }),
+
+  analyzeRequest: async (id, label) => {
+    const { useCopilotStore } = await import('./copilotStore')
+    const { analyzeRequest } = useCopilotStore.getState()
+    await analyzeRequest(id, label)
+    window.location.hash = '#/copilot'
+  },
 }))

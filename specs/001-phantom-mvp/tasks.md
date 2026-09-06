@@ -85,12 +85,12 @@ priority order; [P] tasks are parallelizable.
 
 ### Implementation for User Story 2
 
-- [ ] T027 [P] [US2] Implement frontend/src/types/repeater.ts + services/repeaterService.ts + stores/repeaterStore.ts
-- [ ] T028 [US2] Implement backend/api/repeater_routes.py — tabs CRUD, send endpoint parsing raw request (httpx), response persistence, send history
-- [ ] T029 [P] [US2] Build RequestEditor.tsx — Monaco raw HTTP editor with syntax highlighting
-- [ ] T030 [P] [US2] Build ResponseViewer.tsx — raw/pretty(headers/body/JSON)/hex views + timing
-- [ ] T031 [US2] Build RepeaterTabs.tsx + RepeaterView.tsx — tab CRUD, Ctrl+Enter send, loading/error states
-- [ ] T032 [US2] Verify quickstart Scenario C end-to-end
+- [x] T027 [P] [US2] Implement frontend/src/types/repeater.ts + services/repeaterService.ts + stores/repeaterStore.ts
+- [x] T028 [US2] Implement backend/api/repeater_routes.py — tabs CRUD, send endpoint parsing raw request (httpx), response persistence, send history
+- [x] T029 [P] [US2] Build RequestEditor.tsx — Monaco raw HTTP editor with syntax highlighting
+- [x] T030 [P] [US2] Build ResponseViewer.tsx — raw/pretty(headers/body/JSON)/hex views + timing
+- [x] T031 [US2] Build RepeaterTabs.tsx + RepeaterView.tsx — tab CRUD, Ctrl+Enter send, loading/error states
+- [x] T032 [US2] Verify quickstart Scenario C end-to-end
 
 **Checkpoint**: Stories 1+2 both independently functional
 
@@ -104,15 +104,15 @@ priority order; [P] tasks are parallelizable.
 
 ### Implementation for User Story 3
 
-- [ ] T033 [P] [US3] Implement backend/core/scanner_engine.py — BaseScanCheck interface, check registry, async orchestrator (pause/resume/stop), findings persistence, scan_progress/scan_finding broadcasts
-- [ ] T034 [P] [US3] Implement passive checks in backend/core/scanner_checks/ — cors.py, headers.py, info_disclosure.py, csrf.py, cookies (in headers.py or separate), jwt.py
-- [ ] T035 [P] [US3] Implement active checks in backend/core/scanner_checks/ — xss.py, sqli.py, ssrf.py, open_redirect.py, idor.py/auth_bypass.py — httpx senders with timeouts, scope enforcement (403 refusal)
-- [ ] T036 [US3] Implement backend/api/scanner_routes.py — scan/scans/findings/status/checks endpoints per contracts/api.md
-- [ ] T037 [P] [US3] Implement frontend/src/types/scanner.ts + services/scannerService.ts + stores/scannerStore.ts (WS wiring for scan events)
-- [ ] T038 [P] [US3] Build ScanConfig.tsx — target/check selection, scan type, scope reminder
-- [ ] T039 [P] [US3] Build FindingsList.tsx + FindingDetail.tsx — severity badges, evidence, dumps, status changes
-- [ ] T040 [US3] Build ScanProgress.tsx + ScannerView.tsx — live progress bar, pause/resume/stop controls
-- [ ] T041 [US3] Verify quickstart Scenario D end-to-end
+- [x] T033 [P] [US3] Implement backend/core/scanner_engine.py — BaseScanCheck interface, check registry, async orchestrator (pause/resume/stop), findings persistence, scan_progress/scan_finding broadcasts
+- [x] T034 [P] [US3] Implement passive checks in backend/core/scanner_checks/ — cors.py, headers.py, info_disclosure.py, csrf.py, cookies (in headers.py or separate), jwt.py
+- [x] T035 [P] [US3] Implement active checks in backend/core/scanner_checks/ — xss.py, sqli.py, ssrf.py, open_redirect.py, idor.py/auth_bypass.py — httpx senders with timeouts, scope enforcement (403 refusal)
+- [x] T036 [US3] Implement backend/api/scanner_routes.py — scan/scans/findings/status/checks endpoints per contracts/api.md
+- [x] T037 [P] [US3] Implement frontend/src/types/scanner.ts + services/scannerService.ts + stores/scannerStore.ts (WS wiring for scan events)
+- [x] T038 [P] [US3] Build ScanConfig.tsx — target/check selection, scan type, scope reminder
+- [x] T039 [P] [US3] Build FindingsList.tsx + FindingDetail.tsx — severity badges, evidence, dumps, status changes
+- [x] T040 [US3] Build ScanProgress.tsx + ScannerView.tsx — live progress bar, pause/resume/stop controls
+- [x] T041 [US3] Verify quickstart Scenario D end-to-end
 
 **Checkpoint**: Stories 1–3 independently functional
 
@@ -126,13 +126,13 @@ priority order; [P] tasks are parallelizable.
 
 ### Implementation for User Story 4
 
-- [ ] T042 [P] [US4] Implement backend/core/ai_engine.py — Ollama-compatible client, status probe, streaming chat, PHANTOM system prompt, payload-suggestion prompts
-- [ ] T043 [US4] Implement backend/api/ai_routes.py — SSE streaming endpoints (chat, analyze-request, suggest-payloads), conversations persistence, /api/ai/status
-- [ ] T044 [P] [US4] Implement frontend/src/types/ai.ts + services/aiService.ts (SSE consumption) + stores/copilotStore.ts
-- [ ] T045 [P] [US4] Build ChatMessage.tsx (markdown + code blocks) + ChatInput.tsx (quick actions: Analyze / Payloads / Report)
-- [ ] T046 [P] [US4] Build ContextPanel.tsx — current request/finding context + suggested actions + detected tech
-- [ ] T047 [US4] Compose CopilotView.tsx — availability banner, conversation restore, wire Proxy view "AI Analyze" action
-- [ ] T048 [US4] Verify quickstart Scenario E end-to-end
+- [x] T042 [P] [US4] Implement backend/core/ai_engine.py — Ollama-compatible client, status probe, streaming chat, PHANTOM system prompt, payload-suggestion prompts
+- [x] T043 [US4] Implement backend/api/ai_routes.py — SSE streaming endpoints (chat, analyze-request, suggest-payloads), conversations persistence, /api/ai/status
+- [x] T044 [P] [US4] Implement frontend/src/types/ai.ts + services/aiService.ts (SSE consumption) + stores/copilotStore.ts
+- [x] T045 [P] [US4] Build ChatMessage.tsx (markdown + code blocks) + ChatInput.tsx (quick actions: Analyze / Payloads / Report)
+- [x] T046 [P] [US4] Build ContextPanel.tsx — current request/finding context + suggested actions + detected tech
+- [x] T047 [US4] Compose CopilotView.tsx — availability banner, conversation restore, wire Proxy view "AI Analyze" action
+- [x] T048 [US4] Verify quickstart Scenario E end-to-end
 
 **Checkpoint**: Stories 1–4 independently functional
 
@@ -146,11 +146,11 @@ priority order; [P] tasks are parallelizable.
 
 ### Implementation for User Story 5
 
-- [ ] T049 [US5] Implement backend/api/dashboard_routes.py — stats/traffic(interval)/technologies/top-findings aggregation queries
-- [ ] T050 [P] [US5] Build StatsCards.tsx — totals + severity counts + avg response time
-- [ ] T051 [P] [US5] Build TrafficChart.tsx + VulnChart.tsx — Recharts line + severity donut
-- [ ] T052 [P] [US5] Build TechStack.tsx — detected technologies with hosts
-- [ ] T053 [US5] Compose DashboardView.tsx + services/dashboardService.ts; verify quickstart Scenario F
+- [x] T049 [US5] Implement backend/api/dashboard_routes.py — stats/traffic(interval)/technologies/top-findings aggregation queries
+- [x] T050 [P] [US5] Build StatsCards.tsx — totals + severity counts + avg response time
+- [x] T051 [P] [US5] Build TrafficChart.tsx + VulnChart.tsx — Recharts line + severity donut
+- [x] T052 [P] [US5] Build TechStack.tsx — detected technologies with hosts
+- [x] T053 [US5] Compose DashboardView.tsx + services/dashboardService.ts; verify quickstart Scenario F
 
 **Checkpoint**: Stories 1–5 independently functional
 
@@ -164,10 +164,10 @@ priority order; [P] tasks are parallelizable.
 
 ### Implementation for User Story 6
 
-- [ ] T054 [P] [US6] Implement backend/core/decoder_engine.py — base64/url/html/hex/unicode/gzip/jwt codecs, md5/sha1/sha256/sha512, auto-detect
-- [ ] T055 [P] [US6] Implement backend/api/decoder_routes.py — encode/decode/auto-detect/hash with 422 on bad input
-- [ ] T056 [P] [US6] Build CodecPanel.tsx + services/decoderService.ts
-- [ ] T057 [US6] Build CodecChain.tsx + DecoderView.tsx — chain steps, copy buttons; verify quickstart Scenario G
+- [x] T054 [P] [US6] Implement backend/core/decoder_engine.py — base64/url/html/hex/unicode/gzip/jwt codecs, md5/sha1/sha256/sha512, auto-detect
+- [x] T055 [P] [US6] Implement backend/api/decoder_routes.py — encode/decode/auto-detect/hash with 422 on bad input
+- [x] T056 [P] [US6] Build CodecPanel.tsx + services/decoderService.ts
+- [x] T057 [US6] Build CodecChain.tsx + DecoderView.tsx — chain steps, copy buttons; verify quickstart Scenario G
 
 **Checkpoint**: All six stories independently functional
 

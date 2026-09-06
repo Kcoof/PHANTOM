@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useProxyStore } from '../stores/proxyStore'
+import { useScannerStore } from '../stores/scannerStore'
 
 type Handler = (data: unknown) => void
 
@@ -32,6 +33,7 @@ export function usePhantomWebSocket(onEvent?: Handler): void {
           const msg = JSON.parse(ev.data as string)
           if (msg.event === 'pong') return
           useProxyStore.getState().handleWsEvent(msg.event, msg.data)
+          useScannerStore.getState().handleWsEvent(msg.event, msg.data)
           handlerRef.current?.(msg)
         } catch {
           /* ignore malformed frame */

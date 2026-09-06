@@ -25,6 +25,7 @@ export function RequestTable() {
   }, [requests.length])
 
   const openMenu = (e: React.MouseEvent, id: number): void => {
+    const row = requests.find((r) => r.id === id)
     const items: MenuItem[] = [
       {
         label: 'Send to Repeater',
@@ -38,9 +39,15 @@ export function RequestTable() {
         },
       },
       {
+        label: 'AI Analyze',
+        onClick: () => {
+          const { analyzeRequest } = useProxyStore.getState()
+          void analyzeRequest(id, row ? `${row.method} ${row.host}${row.path}` : `request #${id}`)
+        },
+      },
+      {
         label: 'Copy URL',
         onClick: () => {
-          const row = requests.find((r) => r.id === id)
           if (row) navigator.clipboard?.writeText(row.url)
           toast.success('URL copied')
         },
