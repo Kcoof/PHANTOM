@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Ban, CheckCircle2, Pause, Play, Radar, Square, Wrench } from 'lucide-react'
+import { Ban, CheckCircle2, FileDown, FileText, Pause, Play, Radar, Square, Wrench } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useScannerStore } from '../../stores/scannerStore'
 import { SeverityBadge } from '../shared/Badge'
@@ -46,6 +46,27 @@ export function ScannerView() {
       void loadTargets()
     } catch (err) {
       toast.error(apiError(err))
+    }
+  }
+
+  const [exportOpen, setExportOpen] = useState(false)
+  const exportReport = async (format: 'markdown' | 'html') => {
+    setExportOpen(false)
+    try {
+      const params = new URLSearchParams({ format })
+      if (severityFilter) params.set('severity', severityFilter)
+      const r = await fetch(`/api/scanner/report?${params}`)
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      const blob = await r.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `phantom-report.${format === 'markdown' ? 'md' : 'html'}`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success(`Report exported (${format})`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err))
     }
   }
 
@@ -130,6 +151,39 @@ export function ScannerView() {
           ))}
         </select>
         <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{store.findings.length} findings</span>
+        <span style={{ position: 'relative' }}>
+          <button
+            className="btn sm"
+            onClick={() => setExportOpen((o) => !o)}
+            title={`Export report${severityFilter ? ` (${severityFilter} only)` : ' (all severities)'}`}
+          >
+            <FileDown size={12} /> Export
+          </button>
+          {exportOpen && (
+            <div
+              className="fade-in"
+              style={{
+                position: 'absolute',
+                top: '110%',
+                right: 0,
+                zIndex: 300,
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-active)',
+                borderRadius: 'var(--radius-md)',
+                padding: 4,
+                minWidth: 170,
+                boxShadow: '0 10px 30px rgba(0,0,0,0.55)',
+              }}
+            >
+              <button className="btn ghost sm" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => void exportReport('markdown')}>
+                <FileText size={12} /> Markdown (.md)
+              </button>
+              <button className="btn ghost sm" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => void exportReport('html')}>
+                <FileDown size={12} /> HTML (printable)
+              </button>
+            </div>
+          )}
+        </span>
       </div>
 
       {/* running scans */}

@@ -8,6 +8,7 @@ import importlib
 import os
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -215,3 +216,85 @@ def test_ai_status_graceful_offline(client):
     assert isinstance(r.json()["available"], bool)
     r = client.post("/api/ai/chat", json={"message": "hi"})
     assert r.status_code in (200, 503)
+
+
+# --- spec 002: hunting upgrade ------------------------------------------------
+
+def _seed_body(body: str, url: str, path: str) -> int:
+    import sqlite3
+
+    db = sqlite3.connect(config.DB_PATH)
+    cur = db.execute(
+        """INSERT INTO proxy_history (method, scheme, host, port, path, url,
+             request_headers, status_code, response_headers, response_body)
+           VALUES ('GET', 'https', ?, 443, ?, ?, '{}', 200, '{}', ?)""",
+        (url.split("/")[2], path, url, body),
+    )
+    db.commit()
+    entry_id = cur.lastrowid
+    db.close()
+    return entry_id
+
+
+def test_rescan_adds_no_duplicates(client):
+    _seed_body("<html>plain</html>", "https://dedupe.test/a", "/a")
+    client.post("/api/scanner/scan", json={"scan_type": "passive", "target_url": "dedupe.test"})
+    time.sleep(1.5)
+    before = len(client.get("/api/scanner/findings").json())
+    assert before > 0, "first scan should produce findings"
+    client.post("/api/scanner/scan", json={"scan_type": "passive", "target_url": "dedupe.test"})
+    time.sleep(1.5)
+    after = len(client.get("/api/scanner/findings").json())
+    assert after == before, "rescan must not add duplicate findings"
+
+
+def test_secret_detection_patterns():
+    from core.scanner_checks.secrets import detect_secrets
+
+    assert any(h["label"] == "AWS access key ID" for h in detect_secrets('aws: "AKIAIOSFODNN7EXAMPLE"'))
+    assert not any(
+        h["label"] == "AWS access key ID"
+        for h in detect_secrets('your_api_key = "AKIAIOSFODNN7EXAMPLE"')  # placeholder-suppressed
+    )
+    assert any(
+        h["label"] == "Private key block"
+        for h in detect_secrets("-----BEGIN RSA PRIVATE KEY-----\nMIIE\n-----END RSA PRIVATE KEY-----")
+    )
+    generic = detect_secrets('api_key = "supersecretvalue12345"')
+    assert any(h["confidence"] == "tentative" for h in generic)
+    assert detect_secrets("nothing to see here") == []
+
+
+def test_secrets_finding_via_scan(client):
+    _seed_body('{"cfg": "AKIAIOSFODNN7EXAMPLE"}', "https://leak.test/k", "/k")
+    client.post("/api/scanner/scan", json={"scan_type": "passive", "target_url": "leak.test"})
+    time.sleep(1.5)
+    leak = [f for f in client.get("/api/scanner/findings").json() if f["finding_type"] == "secrets"]
+    assert leak and leak[0]["severity"] == "critical" and leak[0]["cwe_id"] == "CWE-798"
+
+
+def test_report_markdown_and_html(client):
+    r = client.get("/api/scanner/report?format=markdown")
+    assert r.status_code == 200
+    assert "PHANTOM Security Report" in r.text
+    assert "AKIAIOSFODNN7EXAMPLE" in r.text  # secrets evidence included
+    r2 = client.get("/api/scanner/report?format=html")
+    assert r2.status_code == 200 and "<!doctype html" in r2.text.lower()
+    assert client.get("/api/scanner/report?format=docx").status_code == 422
+
+
+def test_throttle_spacing():
+    import asyncio
+
+    from core.scanner_checks.base import _respect_throttle, configure_throttle
+
+    configure_throttle(1, 0.25)
+
+    async def run():
+        t0 = time.perf_counter()
+        for _ in range(5):
+            await _respect_throttle()
+        elapsed = time.perf_counter() - t0
+        assert elapsed >= 4 * 0.2, f"5 spaced probes took {elapsed:.2f}s"
+
+    asyncio.run(run())

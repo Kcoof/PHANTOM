@@ -12,6 +12,7 @@ import uuid
 from typing import Any
 
 from api.websocket import broadcast
+from core.scanner_checks.base import configure_throttle
 from db import database
 from utils.helpers import url_in_scope
 from utils.logger import get_logger
@@ -87,6 +88,7 @@ from core.scanner_checks import (  # noqa: E402,F401
     info_disclosure,
     jwt,
     open_redirect,
+    secrets,
     sqli,
     ssrf,
     xss,
@@ -103,6 +105,7 @@ class ScanSession:
         self.done = 0
         self.total = 0
         self.findings = 0
+        self.duplicates = 0
         self.task: asyncio.Task | None = None
 
     async def gate(self) -> None:
@@ -157,6 +160,13 @@ class ScannerEngine:
 
         scan_id = uuid.uuid4().hex[:12]
         now = time.strftime("%Y-%m-%dT%H:%M:%S")
+        # Load politeness settings (spec 002, FR-004) before any probe can fire
+        delay_row = await database.fetch_one("SELECT value FROM settings WHERE key = 'scanner_delay_ms'")
+        conc_row = await database.fetch_one("SELECT value FROM settings WHERE key = 'scanner_concurrency'")
+        try:
+            configure_throttle(int(conc_row["value"]) if conc_row else 4, (int(delay_row["value"]) if delay_row else 250) / 1000)
+        except (TypeError, ValueError):
+            configure_throttle(4, 0.25)
         await database.execute(
             """INSERT INTO scans (id, target_url, scan_type, status, config, started_at)
                VALUES (?, ?, ?, 'running', ?, ?)""",
@@ -212,11 +222,27 @@ class ScannerEngine:
         )
         await broadcast(
             "scan_progress",
-            {"scan_id": session.scan_id, "status": status, "done": session.done, "total": session.total},
+            {
+                "scan_id": session.scan_id,
+                "status": status,
+                "done": session.done,
+                "total": session.total,
+                "new_findings": session.findings,
+                "duplicates": session.duplicates,
+            },
         )
         self.sessions.pop(session.scan_id, None)
 
     async def _save_finding(self, session: ScanSession, entry: dict, finding: dict) -> None:
+        # Dedupe on (finding_type, url, parameter): an existing finding — including
+        # one the user marked false positive — suppresses the repeat (spec FR-001).
+        existing = await database.fetch_one(
+            "SELECT id FROM scanner_findings WHERE finding_type = ? AND url = ? AND parameter IS ?",
+            (finding["finding_type"], finding["url"], finding.get("parameter")),
+        )
+        if existing:
+            session.duplicates += 1
+            return
         row_id = await database.execute(
             """INSERT INTO scanner_findings
                (scan_id, history_id, finding_type, severity, confidence, title, description,

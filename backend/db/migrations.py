@@ -134,6 +134,8 @@ SEED_SETTINGS = [
     ("intercept_filter", "", "proxy"),
     ("scanner_threads", "10", "scanner"),
     ("scanner_timeout", "30", "scanner"),
+    ("scanner_delay_ms", "250", "scanner"),
+    ("scanner_concurrency", "4", "scanner"),
     ("ai_provider", "ollama", "ai"),
     ("ai_model", "mistral", "ai"),
     ("ai_base_url", "http://localhost:11434", "ai"),
