@@ -103,7 +103,9 @@ export function SettingsView() {
         </div>
         <p style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 10 }}>
           Active scanning only runs against hosts matching an active <b>include</b> rule (authorized targets only).
-          Exclude rules take precedence. Patterns use glob syntax for hosts (e.g. <span className="mono">*.example.com</span>).
+          Exclude rules take precedence. A domain matches itself <b>and all its subdomains</b> —
+          <span className="mono"> example.com</span> covers <span className="mono">api.example.com</span> too,
+          and <span className="mono">*.example.com</span> also matches the apex.
         </p>
         <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
           <select className="input" value={newType} onChange={(e) => setNewType(e.target.value as 'include' | 'exclude')} style={{ width: 110 }}>

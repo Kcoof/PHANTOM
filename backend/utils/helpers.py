@@ -55,13 +55,27 @@ async def load_scope() -> CompiledScope:
     )
 
 
+def _host_pattern_matches(pattern: str, host: str) -> bool:
+    """Subdomain-aware host matching (Burp-style 'include all subdomains').
+
+    - `example.com` matches example.com AND any subdomain (a.example.com)
+    - `*.example.com` matches subdomains AND the apex example.com
+    - `api.example.com` matches itself and anything under it
+    - suffix-safe: `notexample.com` does NOT match `example.com`
+    """
+    p = pattern.lower().strip()
+    h = host.lower().strip()
+    if h == p or fnmatch.fnmatch(h, p):
+        return True
+    base = p[2:] if p.startswith("*.") else p
+    return h == base or h.endswith("." + base)
+
+
 def _rule_matches(rule: dict, scheme: str, host: str, port: int, path: str) -> bool:
     protocol = rule.get("protocol")
     if protocol and protocol not in ("any", None, "", scheme):
         return False
-    pattern = rule["host_pattern"].lower()
-    host = host.lower()
-    if not (host == pattern or fnmatch.fnmatch(host, pattern)):
+    if not _host_pattern_matches(rule["host_pattern"], host):
         return False
     rport = rule.get("port")
     if rport and str(rport).lower() not in ("any", "", str(port)):
