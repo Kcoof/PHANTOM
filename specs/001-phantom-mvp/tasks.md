@@ -24,10 +24,10 @@ priority order; [P] tasks are parallelizable.
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create project structure per plan.md (backend/, frontend/, electron/, scripts/ dirs)
-- [ ] T002 Initialize backend Python project: backend/requirements.txt (per plan.md), venv at backend/.venv, install deps
-- [ ] T003 Initialize frontend with Vite react-ts template in frontend/ and install runtime deps (react-router-dom, @monaco-editor/react, recharts, zustand, axios, lucide-react, react-hot-toast, react-markdown, highlight.js)
-- [ ] T004 [P] Configure frontend/vite.config.ts dev proxy (/api, /ws → 127.0.0.1:8899) and tsconfig paths
+- [x] T001 Create project structure per plan.md (backend/, frontend/, electron/, scripts/ dirs)
+- [x] T002 Initialize backend Python project: backend/requirements.txt (per plan.md), venv at backend/.venv, install deps
+- [x] T003 Initialize frontend with Vite react-ts template in frontend/ and install runtime deps (react-router-dom, @monaco-editor/react, recharts, zustand, axios, lucide-react, react-hot-toast, react-markdown, highlight.js)
+- [x] T004 [P] Configure frontend/vite.config.ts dev proxy (/api, /ws → 127.0.0.1:8899) and tsconfig paths
 
 ---
 
@@ -37,14 +37,14 @@ priority order; [P] tasks are parallelizable.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T005 Implement backend/config.py — defaults + env overrides (ports, paths, caps)
-- [ ] T006 [P] Implement backend/utils/logger.py — structured logging setup
-- [ ] T007 [P] Implement backend/db/database.py — aiosqlite connection, WAL mode, init_db()
-- [ ] T008 Implement backend/db/migrations.py — full schema per data-model.md (8 tables, indexes, seeded settings)
-- [ ] T009 [P] Implement backend/db/models.py — Pydantic models for all entities + enums
-- [ ] T010 [P] Implement backend/api/websocket.py — /ws endpoint, connection registry, broadcast()
-- [ ] T011 Implement backend/main.py — FastAPI app, CORS, lifespan (init DB, stop proxy), router registration
-- [ ] T012 Verify foundation: uvicorn boots on :8899, GET /api/settings returns seeded defaults
+- [x] T005 Implement backend/config.py — defaults + env overrides (ports, paths, caps)
+- [x] T006 [P] Implement backend/utils/logger.py — structured logging setup
+- [x] T007 [P] Implement backend/db/database.py — aiosqlite connection, WAL mode, init_db()
+- [x] T008 Implement backend/db/migrations.py — full schema per data-model.md (8 tables, indexes, seeded settings)
+- [x] T009 [P] Implement backend/db/models.py — Pydantic models for all entities + enums
+- [x] T010 [P] Implement backend/api/websocket.py — /ws endpoint, connection registry, broadcast()
+- [x] T011 Implement backend/main.py — FastAPI app, CORS, lifespan (init DB, stop proxy), router registration
+- [x] T012 Verify foundation: uvicorn boots on :8899, GET /api/settings returns seeded defaults
 
 **Checkpoint**: Foundation ready — user story implementation can begin
 
@@ -58,20 +58,20 @@ priority order; [P] tasks are parallelizable.
 
 ### Implementation for User Story 1
 
-- [ ] T013 [P] [US1] Implement backend/utils/cert_manager.py — mitmproxy CA location/ensure + PEM export
-- [ ] T014 [US1] Implement backend/core/proxy_addon.py — capture every flow, scope check, size-capped body extraction, SQLite persistence, new_request broadcast, intercept queue via asyncio.Event + intercept_request broadcast
-- [ ] T015 [US1] Implement backend/core/proxy_engine.py — in-process mitmproxy start/stop, status, intercept toggle/queue/forward/drop, per-flow state
-- [ ] T016 [US1] Implement backend/api/proxy_routes.py — start/stop/status, intercept toggle/queue/forward/drop, ca-cert download
-- [ ] T017 [US1] Implement backend/api/history_routes.py — filtered paginated list, detail, delete (one/all), tag/note/highlight, send-to-repeater/scanner/copilot
-- [ ] T018 [P] [US1] Build frontend/src/index.css — exact design tokens (plan palette), Inter + JetBrains Mono, scrollbar styling, animations
-- [ ] T019 [P] [US1] Build shared components in frontend/src/components/shared/ — Button, Badge, Modal, Tabs, Table, Tooltip, Dropdown, SearchInput, CodeBlock, SplitPane, LoadingSpinner
-- [ ] T020 [P] [US1] Build layout in frontend/src/components/layout/ — Sidebar, TopBar, StatusBar, MainLayout; App.tsx routes for all views; frontend/src/services/api.ts; frontend/src/hooks/useWebSocket.ts (auto-reconnect + resync)
-- [ ] T021 [US1] Implement frontend/src/stores/proxyStore.ts + types/proxy.ts + services/proxyService.ts — requests, selection, filters, intercept state, WS event wiring
-- [ ] T022 [US1] Build FilterBar.tsx + RequestTable.tsx — live color-coded table (method/status colors), sortable columns, new-row animation
-- [ ] T023 [US1] Build RequestDetail.tsx — resizable SplitPane, raw/headers/body tabs both sides
-- [ ] T024 [US1] Build InterceptPanel.tsx — held request list, edit-before-forward, forward/drop with intercept_resolved feedback
-- [ ] T025 [US1] Compose ProxyView.tsx — toolbar (start/stop, intercept toggle Ctrl+Shift+I), context menu (Send to Repeater/Scanner/AI), tag/note/highlight UI
-- [ ] T026 [US1] Verify quickstart Scenarios A + B end-to-end (real curl through proxy)
+- [x] T013 [P] [US1] Implement backend/utils/cert_manager.py — mitmproxy CA location/ensure + PEM export
+- [x] T014 [US1] Implement backend/core/proxy_addon.py — capture every flow, scope check, size-capped body extraction, SQLite persistence, new_request broadcast, intercept queue via asyncio.Event + intercept_request broadcast
+- [x] T015 [US1] Implement backend/core/proxy_engine.py — in-process mitmproxy start/stop, status, intercept toggle/queue/forward/drop, per-flow state
+- [x] T016 [US1] Implement backend/api/proxy_routes.py — start/stop/status, intercept toggle/queue/forward/drop, ca-cert download
+- [x] T017 [US1] Implement backend/api/history_routes.py — filtered paginated list, detail, delete (one/all), tag/note/highlight, send-to-repeater/scanner/copilot
+- [x] T018 [P] [US1] Build frontend/src/index.css — exact design tokens (plan palette), Inter + JetBrains Mono, scrollbar styling, animations
+- [x] T019 [P] [US1] Build shared components in frontend/src/components/shared/ — Button, Badge, Modal, Tabs, Table, Tooltip, Dropdown, SearchInput, CodeBlock, SplitPane, LoadingSpinner
+- [x] T020 [P] [US1] Build layout in frontend/src/components/layout/ — Sidebar, TopBar, StatusBar, MainLayout; App.tsx routes for all views; frontend/src/services/api.ts; frontend/src/hooks/useWebSocket.ts (auto-reconnect + resync)
+- [x] T021 [US1] Implement frontend/src/stores/proxyStore.ts + types/proxy.ts + services/proxyService.ts — requests, selection, filters, intercept state, WS event wiring
+- [x] T022 [US1] Build FilterBar.tsx + RequestTable.tsx — live color-coded table (method/status colors), sortable columns, new-row animation
+- [x] T023 [US1] Build RequestDetail.tsx — resizable SplitPane, raw/headers/body tabs both sides
+- [x] T024 [US1] Build InterceptPanel.tsx — held request list, edit-before-forward, forward/drop with intercept_resolved feedback
+- [x] T025 [US1] Compose ProxyView.tsx — toolbar (start/stop, intercept toggle Ctrl+Shift+I), context menu (Send to Repeater/Scanner/AI), tag/note/highlight UI
+- [x] T026 [US1] Verify quickstart Scenarios A + B end-to-end (real curl through proxy)
 
 **Checkpoint**: MVP — proxy capture + intercept + history fully working
 
