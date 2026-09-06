@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
-import { Pause, Play, Trash2 } from 'lucide-react'
+import { KeyRound, Pause, Play, Trash2 } from 'lucide-react'
 import { useProxyStore } from '../../stores/proxyStore'
+import { proxyService } from '../../services/proxyService'
 import { FilterBar } from './FilterBar'
 import { RequestTable } from './RequestTable'
 import { RequestDetail } from './RequestDetail'
@@ -13,6 +14,24 @@ export function ProxyView() {
   const toggleIntercept = useProxyStore((s) => s.toggleIntercept)
   const interceptEnabled = useProxyStore((s) => s.interceptEnabled)
   const clearHistory = useProxyStore((s) => s.clearHistory)
+
+  const downloadCaCert = async (): Promise<void> => {
+    try {
+      const pem = await fetch(proxyService.caCertUrl).then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.text()
+      })
+      const blob = new Blob([pem], { type: 'application/x-pem-file' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'phantom-ca-cert.pem'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      window.open(proxyService.caCertUrl, '_blank')
+    }
+  }
 
   useEffect(() => {
     void refresh()
@@ -47,6 +66,15 @@ export function ProxyView() {
         >
           {interceptEnabled ? <Pause size={12} /> : <Play size={12} />}
           Intercept: {interceptEnabled ? 'ON' : 'OFF'}
+        </button>
+        <button
+          className="btn ghost sm"
+          style={{ margin: '6px 0' }}
+          onClick={() => void downloadCaCert()}
+          title="Download the PHANTOM CA certificate (install it in your browser/OS to trust HTTPS interception)"
+        >
+          <KeyRound size={12} />
+          CA Cert
         </button>
         <div style={{ flex: 1 }} />
         <button className="btn ghost sm" style={{ margin: '6px 0' }} onClick={() => void clearHistory()} title="Clear all history">
