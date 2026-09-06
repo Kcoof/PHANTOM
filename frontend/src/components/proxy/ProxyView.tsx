@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Crosshair, KeyRound, Pause, Play, Trash2 } from 'lucide-react'
 import { useProxyStore } from '../../stores/proxyStore'
 import { proxyService } from '../../services/proxyService'
@@ -21,6 +21,22 @@ export function ProxyView() {
   const includeCount = scopeRules.filter(
     (r) => r.rule_type === 'include' && (r.is_active === 1 || r.is_active === true),
   ).length
+
+  // two-step destructive-action guard: first click arms, second click fires
+  const [clearArmed, setClearArmed] = useState(false)
+  useEffect(() => {
+    if (!clearArmed) return
+    const t = setTimeout(() => setClearArmed(false), 3500)
+    return () => clearTimeout(t)
+  }, [clearArmed])
+  const onClearClick = () => {
+    if (!clearArmed) {
+      setClearArmed(true)
+      return
+    }
+    setClearArmed(false)
+    void clearHistory()
+  }
 
   const downloadCaCert = async (): Promise<void> => {
     try {
@@ -98,9 +114,14 @@ export function ProxyView() {
           {visibility.onlyInScope ? ' · filtering' : ''}
         </button>
         <div style={{ flex: 1 }} />
-        <button className="btn ghost sm" style={{ margin: '6px 0' }} onClick={() => void clearHistory()} title="Clear all history">
+        <button
+          className={`btn sm ${clearArmed ? 'danger' : 'ghost'}`}
+          style={{ margin: '6px 0' }}
+          onClick={onClearClick}
+          title="Clear all proxy history (keeps findings)"
+        >
           <Trash2 size={12} />
-          Clear
+          {clearArmed ? 'Confirm clear?' : 'Clear'}
         </button>
       </div>
       <InterceptPanel />

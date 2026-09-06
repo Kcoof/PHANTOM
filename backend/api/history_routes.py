@@ -86,6 +86,9 @@ async def get_history(entry_id: int) -> dict:
 @router.delete("")
 async def clear_history() -> dict:
     row = await database.fetch_one("SELECT COUNT(*) AS n FROM proxy_history")
+    # keep findings as the audit record, but unlink them from the
+    # disappearing history rows (FK constraint would block the delete)
+    await database.execute("UPDATE scanner_findings SET history_id = NULL WHERE history_id IS NOT NULL")
     await database.execute("DELETE FROM proxy_history")
     return {"deleted": row["n"]}
 
@@ -95,6 +98,7 @@ async def delete_history(entry_id: int) -> dict:
     row = await database.fetch_one("SELECT id FROM proxy_history WHERE id = ?", (entry_id,))
     if not row:
         raise HTTPException(status_code=404, detail="history entry not found")
+    await database.execute("UPDATE scanner_findings SET history_id = NULL WHERE history_id = ?", (entry_id,))
     await database.execute("DELETE FROM proxy_history WHERE id = ?", (entry_id,))
     return {"deleted": True}
 

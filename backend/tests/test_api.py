@@ -144,6 +144,29 @@ def test_repeater_raw_parse_errors_cleanly(client):
     client.delete(f"/api/repeater/tabs/{tab['id']}")
 
 
+def test_clear_history_with_referencing_findings(client):
+    """Clearing history must survive the findings FK (findings kept, unlinked)."""
+    import sqlite3
+
+    entry_id = _seed_history_entry()
+    db = sqlite3.connect(config.DB_PATH)
+    db.execute(
+        "INSERT OR IGNORE INTO scans (id, target_url, scan_type) VALUES ('s-clear', 't', 'passive')"
+    )
+    db.execute(
+        """INSERT INTO scanner_findings
+           (scan_id, history_id, finding_type, severity, confidence, title, description, url)
+           VALUES ('s-clear', ?, 'headers', 'low', 'firm', 't', 'd', 'u')""",
+        (entry_id,),
+    )
+    db.commit()
+    db.close()
+    r = client.delete("/api/history")
+    assert r.status_code == 200
+    assert r.json()["deleted"] >= 1
+    assert client.get("/api/history").json()["total"] == 0
+
+
 # --- scanner -------------------------------------------------------------------
 
 def test_scanner_registry_and_passive_scan(client):
