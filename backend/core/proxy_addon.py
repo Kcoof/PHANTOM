@@ -61,6 +61,26 @@ class PhantomAddon:
         flow.metadata[META_INTERCEPTED] = False
         flow.metadata[META_IN_SCOPE] = await self._in_scope(flow)
 
+        # Match & Replace (request side) — applied before intercept so the
+        # held request shows exactly what will be sent (spec 003, FR-003).
+        try:
+            from core.rewrite_engine import apply_request_rules
+
+            new_headers, new_body = await apply_request_rules(
+                flow.request.method,
+                flow.request.pretty_url,
+                dict(flow.request.headers),
+                flow.request.get_text(strict=False) or None,
+            )
+            if new_headers != dict(flow.request.headers):
+                flow.request.headers.clear()
+                for k, v in new_headers.items():
+                    flow.request.headers[k] = v
+            if new_body is not None:
+                flow.request.text = new_body
+        except Exception:
+            log.exception("match&replace (request) failed")
+
         if self.intercept_enabled and self._matches_filter(flow):
             held = HeldFlow(
                 flow_id=flow.metadata[META_FLOW_ID],
@@ -92,6 +112,24 @@ class PhantomAddon:
                 self._apply_modified_request(flow, held.modified_request)
 
     async def response(self, flow: mitmproxy.http.HTTPFlow) -> None:
+        # Match & Replace (response side) — rewrite before persistence so the
+        # stored response matches what the client received.
+        try:
+            from core.rewrite_engine import apply_response_rules
+
+            new_headers, new_body = await apply_response_rules(
+                flow.response.status_code,
+                dict(flow.response.headers),
+                flow.response.get_text(strict=False) or None,
+            )
+            if new_headers != dict(flow.response.headers):
+                flow.response.headers.clear()
+                for k, v in new_headers.items():
+                    flow.response.headers[k] = v
+            if new_body is not None:
+                flow.response.text = new_body
+        except Exception:
+            log.exception("match&replace (response) failed")
         try:
             await self._persist(flow)
         except Exception:

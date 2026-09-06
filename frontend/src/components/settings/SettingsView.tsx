@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Globe2, Plus, Shield, Trash2 } from 'lucide-react'
+import { Globe2, Plus, Replace, Shield, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiError } from '../../services/api'
 import { settingsService, type ScopeRule } from '../../services/settingsService'
+import { matchReplaceService } from '../../services/intruderService'
+import type { MatchReplaceRule } from '../../types/intruder'
 import { Badge } from '../shared/Badge'
 import { LoadingSpinner } from '../shared/LoadingSpinner'
 
@@ -25,12 +27,25 @@ export function SettingsView() {
   const [scope, setScope] = useState<ScopeRule[]>([])
   const [newPattern, setNewPattern] = useState('')
   const [newType, setNewType] = useState<'include' | 'exclude'>('include')
+  const [mrRules, setMrRules] = useState<MatchReplaceRule[]>([])
+  const [mrForm, setMrForm] = useState({
+    location: 'request' as 'request' | 'response',
+    match_type: 'literal' as 'literal' | 'regex',
+    match_value: '',
+    replace_value: '',
+    comment: '',
+  })
 
   const load = async () => {
     try {
-      const [s, sc] = await Promise.all([settingsService.all(), settingsService.scope()])
+      const [s, sc, mr] = await Promise.all([
+        settingsService.all(),
+        settingsService.scope(),
+        matchReplaceService.list(),
+      ])
       setSettings(s)
       setScope(sc)
+      setMrRules(mr)
     } catch (err) {
       toast.error(`Failed to load settings: ${apiError(err)}`)
     }
@@ -149,6 +164,71 @@ export function SettingsView() {
         ))}
         {scope.length === 0 && (
           <div style={{ color: 'var(--text-muted)', fontSize: 11.5 }}>No scope rules — active scanning is blocked until you add one.</div>
+        )}
+      </div>
+
+      {/* match & replace */}
+      <div className="panel" style={{ padding: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <Replace size={14} color="var(--accent-secondary)" />
+          <span style={{ fontWeight: 700, fontSize: 12.5 }}>Match &amp; Replace</span>
+        </div>
+        <p style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 10 }}>
+          Live rewriting of proxied traffic, applied in order before it's sent/stored. Use it to inject headers,
+          strip cache busters, or normalize values. Header names, header values, and bodies are all rewritten.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '90px 80px 1fr 1fr auto', gap: 6, marginBottom: 8 }}>
+          <select className="input" value={mrForm.location} onChange={(e) => setMrForm({ ...mrForm, location: e.target.value as 'request' | 'response' })}>
+            <option value="request">request</option>
+            <option value="response">response</option>
+          </select>
+          <select className="input" value={mrForm.match_type} onChange={(e) => setMrForm({ ...mrForm, match_type: e.target.value as 'literal' | 'regex' })}>
+            <option value="literal">literal</option>
+            <option value="regex">regex</option>
+          </select>
+          <input className="input mono" placeholder="match (e.g. X-Old-Header or ^/v1/)" value={mrForm.match_value} onChange={(e) => setMrForm({ ...mrForm, match_value: e.target.value })} style={{ fontSize: 11 }} />
+          <input className="input mono" placeholder="replace with…" value={mrForm.replace_value} onChange={(e) => setMrForm({ ...mrForm, replace_value: e.target.value })} style={{ fontSize: 11 }} />
+          <button
+            className="btn primary sm"
+            onClick={async () => {
+              if (!mrForm.match_value.trim()) return
+              try {
+                await matchReplaceService.add({ ...mrForm, enabled: true, comment: mrForm.comment || null })
+                toast.success('Rule added — applies to new traffic')
+                setMrForm({ ...mrForm, match_value: '', replace_value: '' })
+                void load()
+              } catch (err) {
+                toast.error(apiError(err))
+              }
+            }}
+          >
+            <Plus size={12} /> Add
+          </button>
+        </div>
+        {mrRules.map((r) => (
+          <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--border-primary)', fontSize: 11.5 }}>
+            <Badge color={r.location === 'request' ? 'var(--accent-primary)' : 'var(--accent-secondary)'}>{r.location}</Badge>
+            <span style={{ color: 'var(--text-muted)', width: 46 }}>{r.match_type}</span>
+            <span className="mono" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {r.match_value} <span style={{ color: 'var(--text-muted)' }}>→</span> {r.replace_value || '(remove)'}
+            </span>
+            <button
+              className="btn ghost sm danger"
+              onClick={async () => {
+                try {
+                  await matchReplaceService.remove(r.id)
+                  void load()
+                } catch (err) {
+                  toast.error(apiError(err))
+                }
+              }}
+            >
+              <Trash2 size={12} />
+            </button>
+          </div>
+        ))}
+        {mrRules.length === 0 && (
+          <div style={{ color: 'var(--text-muted)', fontSize: 11.5 }}>No rules — proxied traffic passes through unchanged.</div>
         )}
       </div>
     </div>

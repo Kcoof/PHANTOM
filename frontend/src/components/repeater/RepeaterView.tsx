@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
-import { Play, Plus, X } from 'lucide-react'
+import { Play, Plus, Crosshair, X } from 'lucide-react'
 import { useRepeaterStore } from '../../stores/repeaterStore'
+import { useIntruderStore } from '../../stores/intruderStore'
 import { RequestEditor } from './RequestEditor'
 import { ResponseViewer } from './ResponseViewer'
 import { SplitPane } from '../shared/SplitPane'
@@ -96,6 +97,17 @@ export function RepeaterView() {
                   <span className="mono" style={{ fontSize: 10.5, color: 'var(--text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {active.url}
                   </span>
+                  <button
+                    className="btn ghost sm"
+                    title="Send this template to Intruder"
+                    onClick={() => {
+                      const raw = rawEdits[active.id] ?? rawOf(active)
+                      useIntruderStore.getState().setDraft(raw)
+                      window.location.hash = '#/intruder'
+                    }}
+                  >
+                    <Crosshair size={11} /> Intruder
+                  </button>
                   <button className="btn sm primary" disabled={sending} onClick={() => void send(active.id)} title="Ctrl+Enter">
                     <Play size={11} />
                     {sending ? 'Sending…' : 'Send'}

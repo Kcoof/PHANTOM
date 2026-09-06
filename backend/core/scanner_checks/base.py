@@ -75,12 +75,14 @@ async def send_variant(
     headers: dict[str, str],
     content: bytes | None,
     timeout: float = 15.0,
+    enforce_scope: bool = True,
 ) -> httpx.Response | None:
-    """Send a modified request if the URL is in scope; None if out of scope/failed.
+    """Send a modified request; None if out of scope (when enforced) or failed.
 
     Every send passes the global throttle (concurrency cap + delay).
+    Manual tools (Intruder) pass enforce_scope=False — the operator aims.
     """
-    if not await url_in_scope(url):
+    if enforce_scope and not await url_in_scope(url):
         return None
     clean = {k: v for k, v in headers.items() if k.lower() not in ("host", "content-length", "connection", "accept-encoding")}
     async with _probe_semaphore:

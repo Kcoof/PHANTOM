@@ -54,6 +54,25 @@ export function RequestTable() {
         },
       },
       {
+        label: 'Send to Intruder',
+        onClick: async () => {
+          try {
+            const d = await historyService.detail(id)
+            const u = new URL(d.url)
+            const lines = [`${d.method} ${u.pathname}${u.search} HTTP/1.1`, `Host: ${u.host}`]
+            Object.entries(d.request_headers ?? {}).forEach(([k, v]) => lines.push(`${k}: ${v}`))
+            let raw = lines.join('\n')
+            if (d.request_body) raw += `\n\n${d.request_body}`
+            const { useIntruderStore } = await import('../../stores/intruderStore')
+            useIntruderStore.getState().setDraft(raw)
+            toast.success('Request sent to Intruder — mark §positions§')
+            window.location.hash = '#/intruder'
+          } catch (err) {
+            toast.error(apiError(err))
+          }
+        },
+      },
+      {
         label: 'Scan this request',
         onClick: async () => {
           try {

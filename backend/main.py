@@ -13,9 +13,12 @@ from api import (
     dashboard_routes,
     decoder_routes,
     history_routes,
+    intruder_routes,
+    match_replace_routes,
     proxy_routes,
     repeater_routes,
     scanner_routes,
+    search_routes,
     settings_routes,
     websocket,
 )
@@ -61,6 +64,9 @@ app.include_router(ai_routes.router, prefix="/api/ai", tags=["AI Copilot"])
 app.include_router(decoder_routes.router, prefix="/api/decoder", tags=["Decoder"])
 app.include_router(dashboard_routes.router, prefix="/api/dashboard", tags=["Dashboard"])
 app.include_router(settings_routes.router, prefix="/api/settings", tags=["Settings"])
+app.include_router(intruder_routes.router, prefix="/api/intruder", tags=["Intruder"])
+app.include_router(search_routes.router, prefix="/api/search", tags=["Search"])
+app.include_router(match_replace_routes.router, prefix="/api/match-replace", tags=["Match & Replace"])
 app.include_router(websocket.router, tags=["WebSocket"])
 
 

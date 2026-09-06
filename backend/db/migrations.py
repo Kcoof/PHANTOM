@@ -118,6 +118,47 @@ CREATE TABLE IF NOT EXISTS settings (
     category TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS match_replace_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    enabled BOOLEAN DEFAULT 1,
+    location TEXT NOT NULL,             -- request | response
+    match_type TEXT NOT NULL,           -- literal | regex
+    match_value TEXT NOT NULL,
+    replace_value TEXT DEFAULT '',
+    comment TEXT
+);
+
+CREATE TABLE IF NOT EXISTS intruder_attacks (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    raw_template TEXT NOT NULL,
+    payloads TEXT NOT NULL,             -- JSON array
+    grep_patterns TEXT,                 -- JSON array of regex
+    status TEXT NOT NULL DEFAULT 'running',
+    total INTEGER DEFAULT 0,
+    done INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    baseline_status INTEGER,
+    baseline_length INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS intruder_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    attack_id TEXT NOT NULL,
+    idx INTEGER NOT NULL,               -- -1 = baseline
+    payload TEXT,
+    status INTEGER,
+    length INTEGER,
+    time_ms INTEGER,
+    matched TEXT,                       -- JSON array of matched patterns
+    is_baseline BOOLEAN DEFAULT 0,
+    response_body TEXT,
+    url TEXT,
+    FOREIGN KEY (attack_id) REFERENCES intruder_attacks(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_intruder_results_attack ON intruder_results(attack_id, idx);
+
 CREATE INDEX IF NOT EXISTS idx_history_host ON proxy_history(host);
 CREATE INDEX IF NOT EXISTS idx_history_method ON proxy_history(method);
 CREATE INDEX IF NOT EXISTS idx_history_status ON proxy_history(status_code);

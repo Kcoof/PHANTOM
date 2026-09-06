@@ -298,3 +298,67 @@ def test_throttle_spacing():
         assert elapsed >= 4 * 0.2, f"5 spaced probes took {elapsed:.2f}s"
 
     asyncio.run(run())
+
+
+# --- spec 003: tier-2 power tools ----------------------------------------------
+
+def test_match_replace_rules_crud_and_apply(client):
+    r = client.post(
+        "/api/match-replace",
+        json={"enabled": True, "location": "request", "match_type": "literal",
+              "match_value": "X-Old-Header", "replace_value": "X-New-Header"},
+    )
+    assert r.status_code == 201
+    rule_id = r.json()["id"]
+    rules = client.get("/api/match-replace").json()
+    assert any(x["id"] == rule_id for x in rules)
+    # regex validation
+    bad = client.post("/api/match-replace", json={"location": "response", "match_type": "regex", "match_value": "("})
+    assert bad.status_code == 422
+    # rewrite engine applies literal rules
+    from core.rewrite_engine import _apply_text
+
+    text, _ = _apply_text("X-Old-Header: yes", [{"id": 1, "location": "request", "match_type": "literal",
+                                                 "match_value": "X-Old-Header", "replace_value": "X-New"}], "request")
+    assert text == "X-New: yes"
+    text2, _ = _apply_text("v1/api", [{"id": 2, "location": "request", "match_type": "regex",
+                                       "match_value": r"^v1/", "replace_value": "v2/"}], "request")
+    assert text2 == "v2/api"
+    assert client.delete(f"/api/match-replace/{rule_id}").json()["deleted"] is True
+
+
+def test_global_search_literal_and_regex(client):
+    _seed_body("the magic token ABC-123 lives here", "https://search.test/a", "/a")
+    hits = client.get("/api/search", params={"q": "ABC-123"}).json()
+    assert any(h["id"] and "ABC-123" in h["snippet"] for h in hits)
+    rx = client.get("/api/search", params={"q": r"ABC-\d+", "regex": "true"}).json()
+    assert any("ABC-123" in h["snippet"] for h in rx)
+    assert client.get("/api/search", params={"q": "(", "regex": "true"}).status_code == 422
+
+
+def test_intruder_end_to_end(client):
+    # attack our own backend (localhost, no position left unmarked)
+    raw = "GET /api/health?probe=§orig§ HTTP/1.1\nHost: 127.0.0.1:8899"
+    r = client.post(
+        "/api/intruder/attacks",
+        json={"raw_request": raw, "payloads": ["alpha", "beta"], "grep_patterns": ["ok"], "name": "t"},
+    )
+    assert r.status_code == 201
+    attack_id = r.json()["attack_id"]
+    for _ in range(40):
+        time.sleep(0.25)
+        row = client.get(f"/api/intruder/attacks/{attack_id}").json()
+        if row["status"] in ("completed", "failed", "stopped"):
+            break
+    assert row["status"] == "completed"
+    results = client.get(f"/api/intruder/attacks/{attack_id}/results").json()
+    assert len(results) == 3  # baseline + 2 payloads
+    assert results[0]["is_baseline"] in (0, 1, True)
+    statuses = {r["status"] for r in results}
+    assert 200 in statuses  # our health endpoint answered
+    # no positions -> 422
+    bad = client.post("/api/intruder/attacks", json={"raw_request": "GET / HTTP/1.1", "payloads": ["x"]})
+    assert bad.status_code == 422
+    # wordlists available
+    wl = client.get("/api/intruder/wordlists").json()
+    assert "sqli-basic" in wl and wl["sqli-basic"] >= 5
