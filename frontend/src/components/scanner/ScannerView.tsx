@@ -5,6 +5,8 @@ import { useScannerStore } from '../../stores/scannerStore'
 import { SeverityBadge } from '../shared/Badge'
 import { apiError } from '../../services/api'
 import { historyService } from '../../services/proxyService'
+import { scannerService } from '../../services/scannerService'
+import { settingsService } from '../../services/settingsService'
 import type { Finding } from '../../types/scanner'
 
 const SEVERITIES = ['critical', 'high', 'medium', 'low', 'info']
@@ -14,11 +16,45 @@ export function ScannerView() {
   const [scanType, setScanType] = useState<'passive' | 'active' | 'full'>('passive')
   const [selected, setSelected] = useState<string[]>([])
   const [severityFilter, setSeverityFilter] = useState('')
+  const [targetHost, setTargetHost] = useState('')
+  const [targets, setTargets] = useState<Array<{ host: string; count: number }>>([])
+  const [scopeHosts, setScopeHosts] = useState<string[]>([])
+
+  const loadTargets = async () => {
+    try {
+      const [t, rules] = await Promise.all([scannerService.targets(), settingsService.scope()])
+      setTargets(t)
+      setScopeHosts(
+        rules
+          .filter((r) => r.rule_type === 'include')
+          .map((r) => r.host_pattern),
+      )
+    } catch {
+      /* transient — dropdown just stays empty */
+    }
+  }
 
   useEffect(() => {
     void store.load()
+    void loadTargets()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const hostInScope = (host: string) =>
+    scopeHosts.some((p) => {
+      const re = new RegExp('^' + p.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$', 'i')
+      return re.test(host)
+    })
+
+  const addHostToScope = async (host: string) => {
+    try {
+      await settingsService.addScope({ rule_type: 'include', host_pattern: host, protocol: 'any', path_pattern: '.*' })
+      toast.success(`${host} added to active-scan scope`)
+      void loadTargets()
+    } catch (err) {
+      toast.error(apiError(err))
+    }
+  }
 
   const visibleFindings = severityFilter
     ? store.findings.filter((f) => f.severity === severityFilter)
@@ -41,16 +77,30 @@ export function ScannerView() {
         }}
       >
         <Radar size={14} color="var(--accent-primary)" />
-        <select className="input" value={scanType} onChange={(e) => setScanType(e.target.value as 'passive' | 'active' | 'full')} style={{ width: 120 }}>
+        <select className="input" value={scanType} onChange={(e) => setScanType(e.target.value as 'passive' | 'active' | 'full')} style={{ width: 110 }}>
           <option value="passive">Passive</option>
           <option value="active">Active</option>
           <option value="full">Full</option>
         </select>
         <select
           className="input"
+          title="Scan target — hosts seen in your proxy history"
+          value={targetHost}
+          onChange={(e) => setTargetHost(e.target.value)}
+          style={{ width: 240 }}
+        >
+          <option value="">All captured hosts ({targets.reduce((a, t) => a + t.count, 0)} requests)</option>
+          {targets.map((t) => (
+            <option key={t.host} value={t.host}>
+              {t.host} ({t.count})
+            </option>
+          ))}
+        </select>
+        <select
+          className="input"
           value={selected.length ? selected[0] : ''}
           onChange={(e) => setSelected(e.target.value ? [e.target.value] : [])}
-          style={{ width: 200 }}
+          style={{ width: 190 }}
         >
           <option value="">All checks</option>
           {store.checks.map((c) => (
@@ -59,13 +109,25 @@ export function ScannerView() {
             </option>
           ))}
         </select>
-        <button className="btn primary sm" disabled={store.starting} onClick={() => void store.startScan(scanType, selected)}>
+        <button
+          className="btn primary sm"
+          disabled={store.starting}
+          onClick={() => void store.startScan(scanType, selected, targetHost)}
+        >
           {store.starting ? 'Starting…' : 'Start scan'}
         </button>
-        {scanType !== 'passive' && (
+        {scanType !== 'passive' && !targetHost && (
           <span style={{ fontSize: 10.5, color: 'var(--severity-medium)' }}>
-            Active scans require an include scope rule (Settings → Scope) · authorized targets only
+            Pick a target host for active scanning
           </span>
+        )}
+        {scanType !== 'passive' && targetHost && !hostInScope(targetHost) && (
+          <button className="btn sm" style={{ color: 'var(--severity-medium)' }} onClick={() => void addHostToScope(targetHost)}>
+            Add {targetHost} to scope
+          </button>
+        )}
+        {scanType !== 'passive' && targetHost && hostInScope(targetHost) && (
+          <span style={{ fontSize: 10.5, color: 'var(--severity-low)' }}>✓ {targetHost} in scope · authorized targets only</span>
         )}
         <div style={{ flex: 1 }} />
         <select className="input" value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)} style={{ width: 130 }}>

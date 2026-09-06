@@ -179,9 +179,14 @@ class ScannerEngine:
                     try:
                         for finding in await check.check(entry):
                             finding.setdefault("url", entry["url"])
-                            finding.setdefault("finding_type", check.check_type)
-                            finding.setdefault("severity", check.severity)
-                            finding.setdefault("cwe_id", check.cwe_id)
+                            # checks start from a template with empty-string
+                            # defaults, so use explicit fill-ins, not setdefault
+                            if not finding.get("finding_type"):
+                                finding["finding_type"] = check.check_type
+                            if not finding.get("severity"):
+                                finding["severity"] = check.severity
+                            if not finding.get("cwe_id"):
+                                finding["cwe_id"] = check.cwe_id
                             await self._save_finding(session, entry, finding)
                     except Exception:
                         log.exception("check %s failed on %s", check.check_type, entry.get("url"))

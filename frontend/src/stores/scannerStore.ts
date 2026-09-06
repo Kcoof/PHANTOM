@@ -14,7 +14,7 @@ interface ScannerStore {
   starting: boolean
 
   load: () => Promise<void>
-  startScan: (type: 'active' | 'passive' | 'full', selected: string[]) => Promise<void>
+  startScan: (type: 'active' | 'passive' | 'full', selected: string[], targetHost?: string) => Promise<void>
   selectFinding: (f: Finding | null) => void
   setFindingStatus: (id: number, status: string) => Promise<void>
   control: (scanId: string, action: 'pause' | 'resume' | 'stop') => Promise<void>
@@ -42,10 +42,14 @@ export const useScannerStore = create<ScannerStore>((set, get) => ({
     }
   },
 
-  startScan: async (type, selected) => {
+  startScan: async (type, selected, targetHost) => {
     set({ starting: true })
     try {
-      const { scan_id } = await scannerService.startScan({ scan_type: type, checks: selected.length ? selected : undefined })
+      const { scan_id } = await scannerService.startScan({
+        scan_type: type,
+        checks: selected.length ? selected : undefined,
+        target_url: targetHost || undefined,
+      })
       toast.success(`Scan ${scan_id} started`)
       set((s) => ({
         progress: { ...s.progress, [scan_id]: { scan_id, status: 'running', done: 0, total: 0 } },

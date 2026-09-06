@@ -46,6 +46,15 @@ async def list_checks() -> list[dict]:
     return available_checks()
 
 
+@router.get("/targets")
+async def list_targets() -> list[dict]:
+    """Distinct hosts seen in proxy history — pick a scan target from these."""
+    return await database.fetch_all(
+        "SELECT host, COUNT(*) AS count, MAX(timestamp) AS last_seen "
+        "FROM proxy_history GROUP BY host ORDER BY count DESC LIMIT 200"
+    )
+
+
 @router.get("/scans")
 async def list_scans() -> list[dict]:
     return await database.fetch_all("SELECT * FROM scans ORDER BY timestamp DESC LIMIT 100")

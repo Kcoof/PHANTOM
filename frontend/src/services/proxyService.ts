@@ -69,4 +69,8 @@ export const historyService = {
     const { data } = await api.post(`/history/${id}/send-to-repeater`, {})
     return data
   },
+  async sendToScanner(id: number): Promise<{ scan_id: string }> {
+    const { data } = await api.post(`/history/${id}/send-to-scanner`, {})
+    return data
+  },
 }

@@ -1,9 +1,19 @@
 import { api } from './api'
 import type { Finding, Scan, ScanCheckInfo } from '../types/scanner'
 
+export interface ScanTarget {
+  host: string
+  count: number
+  last_seen: string | null
+}
+
 export const scannerService = {
   async checks(): Promise<ScanCheckInfo[]> {
     const { data } = await api.get<ScanCheckInfo[]>('/scanner/checks')
+    return data
+  },
+  async targets(): Promise<ScanTarget[]> {
+    const { data } = await api.get<ScanTarget[]>('/scanner/targets')
     return data
   },
   async startScan(body: {
@@ -12,6 +22,10 @@ export const scannerService = {
     checks?: string[]
   }): Promise<{ scan_id: string }> {
     const { data } = await api.post('/scanner/scan', body)
+    return data
+  },
+  async scanHistoryIds(ids: number[], scan_type: 'active' | 'passive' = 'passive'): Promise<{ scan_id: string }> {
+    const { data } = await api.post('/scanner/scan', { history_ids: ids, scan_type })
     return data
   },
   async scans(): Promise<Scan[]> {

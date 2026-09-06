@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
+import { loader } from '@monaco-editor/react'
 import { MainLayout } from './components/layout/MainLayout'
 import { ProxyView } from './components/proxy/ProxyView'
 import { RepeaterView } from './components/repeater/RepeaterView'
@@ -18,6 +19,8 @@ function AppShell() {
 
   useEffect(() => {
     void refreshStatus()
+    // Preload Monaco in the background so opening the Repeater is instant
+    void loader.init()
   }, [refreshStatus])
 
   return (

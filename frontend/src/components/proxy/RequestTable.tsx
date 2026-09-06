@@ -32,7 +32,25 @@ export function RequestTable() {
         onClick: async () => {
           try {
             const { repeater_tab_id } = await historyService.sendToRepeater(id)
+            // refresh the repeater store immediately so the tab is there
+            // the moment the view is opened (no load-on-mount wait)
+            const { useRepeaterStore } = await import('../../stores/repeaterStore')
+            void useRepeaterStore.getState().load()
             toast.success(`Sent to Repeater (tab #${repeater_tab_id})`)
+          } catch (err) {
+            toast.error(apiError(err))
+          }
+        },
+      },
+      {
+        label: 'Scan this request',
+        onClick: async () => {
+          try {
+            const { scan_id } = await historyService.sendToScanner(id)
+            const { useScannerStore } = await import('../../stores/scannerStore')
+            void useScannerStore.getState().load()
+            toast.success(`Passive scan ${scan_id} started — opening Scanner`)
+            window.location.hash = '#/scanner'
           } catch (err) {
             toast.error(apiError(err))
           }

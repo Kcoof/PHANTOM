@@ -6,12 +6,13 @@ import { ResponseViewer } from './ResponseViewer'
 import { SplitPane } from '../shared/SplitPane'
 
 export function RepeaterView() {
-  const { tabs, activeTabId, load, newTab, closeTab, setActive, send, sending, rawEdits, setRaw, rawOf, lastResult, loaded } =
+  const { tabs, activeTabId, load, newTab, closeTab, setActive, send, sending, rawEdits, setRaw, rawOf, lastResult } =
     useRepeaterStore()
 
+  // Always resync on mount: tabs may have been created from the Proxy view
   useEffect(() => {
-    if (!loaded) void load()
-  }, [loaded, load])
+    void load()
+  }, [load])
 
   // Ctrl+Enter sends the active tab (FR-018)
   useEffect(() => {
