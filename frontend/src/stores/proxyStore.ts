@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import toast from 'react-hot-toast'
 import { apiError } from '../services/api'
 import { historyService, proxyService } from '../services/proxyService'
+import { settingsService, type ScopeRule } from '../services/settingsService'
+import { hostInScope } from '../utils/scope'
 import type { ProxyRequestDetail } from '../types/common'
 import type { InterceptedFlow, NewRequestEvent, ProxyStatus } from '../types/proxy'
 import type { ProxyRequest } from '../types/proxy'
@@ -13,6 +15,62 @@ export interface HistoryFilters {
   search: string
 }
 
+/** Burp-style visibility filters (hide noise / focus on what matters). */
+export interface VisibilityFilters {
+  hideJs: boolean
+  hideCss: boolean
+  hideImages: boolean
+  hideFonts: boolean
+  hideMedia: boolean
+  customHiddenExts: string // comma-separated
+  onlyInScope: boolean
+  onlyParameterized: boolean
+}
+
+const DEFAULT_VISIBILITY: VisibilityFilters = {
+  hideJs: true,
+  hideCss: true,
+  hideImages: true,
+  hideFonts: true,
+  hideMedia: true,
+  customHiddenExts: '',
+  onlyInScope: false,
+  onlyParameterized: false,
+}
+
+const PRESET_EXTS: Record<keyof Pick<VisibilityFilters, 'hideJs' | 'hideCss' | 'hideImages' | 'hideFonts' | 'hideMedia'>, string[]> = {
+  hideJs: ['js', 'mjs', 'jsx', 'map', 'ts', 'coffee'],
+  hideCss: ['css', 'scss', 'less'],
+  hideImages: ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp', 'avif'],
+  hideFonts: ['woff', 'woff2', 'ttf', 'otf', 'eot'],
+  hideMedia: ['mp4', 'webm', 'mp3', 'wav', 'ogg', 'm4a', 'mov'],
+}
+
+const VISIBILITY_LS_KEY = 'phantom.proxy.visibility'
+
+function loadStoredVisibility(): VisibilityFilters {
+  try {
+    const raw = localStorage.getItem(VISIBILITY_LS_KEY)
+    if (raw) return { ...DEFAULT_VISIBILITY, ...JSON.parse(raw) }
+  } catch {
+    /* fall back to defaults */
+  }
+  return DEFAULT_VISIBILITY
+}
+
+function hiddenExtensions(v: VisibilityFilters): Set<string> {
+  const exts = new Set<string>()
+  for (const key of Object.keys(PRESET_EXTS) as (keyof typeof PRESET_EXTS)[]) {
+    if (v[key]) PRESET_EXTS[key].forEach((e) => exts.add(e))
+  }
+  v.customHiddenExts
+    .split(',')
+    .map((s) => s.trim().toLowerCase().replace(/^\./, ''))
+    .filter(Boolean)
+    .forEach((e) => exts.add(e))
+  return exts
+}
+
 interface ProxyStore {
   requests: ProxyRequest[]
   total: number
@@ -20,6 +78,9 @@ interface ProxyStore {
   selectedDetail: ProxyRequestDetail | null
   detailLoading: boolean
   filters: HistoryFilters
+  visibility: VisibilityFilters
+  hiddenCount: number
+  scopeRules: ScopeRule[]
   status: ProxyStatus | null
   interceptEnabled: boolean
   interceptFilter: string
@@ -29,6 +90,10 @@ interface ProxyStore {
 
   setWsConnected: (v: boolean) => void
   setFilters: (f: Partial<HistoryFilters>) => void
+  setVisibility: (v: Partial<VisibilityFilters>) => void
+  resetVisibility: () => void
+  refreshScopeRules: () => Promise<void>
+  visibleRequests: () => ProxyRequest[]
   refreshRequests: () => Promise<void>
   selectRequest: (id: number | null) => Promise<void>
   refreshStatus: () => Promise<void>
@@ -54,6 +119,9 @@ export const useProxyStore = create<ProxyStore>((set, get) => ({
   selectedDetail: null,
   detailLoading: false,
   filters: { method: '', host: '', status: '', search: '' },
+  visibility: loadStoredVisibility(),
+  hiddenCount: 0,
+  scopeRules: [],
   status: null,
   interceptEnabled: false,
   interceptFilter: '',
@@ -66,6 +134,65 @@ export const useProxyStore = create<ProxyStore>((set, get) => ({
   setFilters: (f) => {
     set((s) => ({ filters: { ...s.filters, ...f } }))
     void get().refreshRequests()
+  },
+
+  setVisibility: (patch) => {
+    set((s) => {
+      const visibility = { ...s.visibility, ...patch }
+      try {
+        localStorage.setItem(VISIBILITY_LS_KEY, JSON.stringify(visibility))
+      } catch {
+        /* non-fatal */
+      }
+      return { visibility }
+    })
+    get().visibleRequests() // recompute hiddenCount
+  },
+
+  resetVisibility: () => {
+    try {
+      localStorage.setItem(VISIBILITY_LS_KEY, JSON.stringify(DEFAULT_VISIBILITY))
+    } catch {
+      /* non-fatal */
+    }
+    set({ visibility: { ...DEFAULT_VISIBILITY } })
+    get().visibleRequests()
+  },
+
+  refreshScopeRules: async () => {
+    try {
+      set({ scopeRules: await settingsService.scope() })
+    } catch {
+      /* keep last known rules */
+    }
+  },
+
+  visibleRequests: () => {
+    const { requests, visibility, scopeRules } = get()
+    const exts = hiddenExtensions(visibility)
+    const visible = requests.filter((r) => {
+      if (exts.size > 0) {
+        const file = (r.path || '').split('?')[0].split('/').pop() ?? ''
+        const dot = file.lastIndexOf('.')
+        const ext = dot >= 0 ? file.slice(dot + 1).toLowerCase() : ''
+        if (ext && exts.has(ext)) return false
+        if (!ext && visibility.hideImages && /^(favicon|apple-touch-icon|.*-\d+x\d+)$/.test(file)) return false
+      }
+      if (visibility.onlyInScope && scopeRules.length >= 0) {
+        // live evaluation against current rules (rows captured before rule
+        // changes still get judged by what's in scope NOW, like Burp)
+        if (!hostInScope(scopeRules, r.host)) return false
+      }
+      if (visibility.onlyParameterized) {
+        const hasQuery = Boolean(r.query_string) || /\?[^/]*=/.test(r.url)
+        if (!hasQuery) return false
+      }
+      return true
+    })
+    if (visible.length !== requests.length - get().hiddenCount) {
+      set({ hiddenCount: requests.length - visible.length })
+    }
+    return visible
   },
 
   refreshRequests: async () => {
@@ -107,6 +234,7 @@ export const useProxyStore = create<ProxyStore>((set, get) => ({
     } catch {
       set({ status: null })
     }
+    void get().refreshScopeRules()
   },
 
   startProxy: async () => {
@@ -194,12 +322,13 @@ export const useProxyStore = create<ProxyStore>((set, get) => ({
           host: e.host,
           port: 0,
           path: e.path,
+          query_string: e.query_string ?? null,
           url: e.url,
           status_code: e.status_code,
           response_time_ms: e.response_time_ms,
           size_bytes: e.size_bytes,
           is_intercepted: 0,
-          is_in_scope: 1,
+          is_in_scope: e.is_in_scope ?? 1,
           tags: [],
           _new: true,
         } as ProxyRequest
@@ -207,6 +336,7 @@ export const useProxyStore = create<ProxyStore>((set, get) => ({
           requests: [row, ...s.requests].slice(0, MAX_ROWS),
           total: s.total + 1,
         }))
+        get().visibleRequests() // keep hidden-count fresh for live rows
         break
       }
       case 'intercept_request':

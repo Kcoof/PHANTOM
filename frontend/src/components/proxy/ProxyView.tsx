@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { KeyRound, Pause, Play, Trash2 } from 'lucide-react'
+import { Crosshair, KeyRound, Pause, Play, Trash2 } from 'lucide-react'
 import { useProxyStore } from '../../stores/proxyStore'
 import { proxyService } from '../../services/proxyService'
 import { FilterBar } from './FilterBar'
@@ -14,6 +14,13 @@ export function ProxyView() {
   const toggleIntercept = useProxyStore((s) => s.toggleIntercept)
   const interceptEnabled = useProxyStore((s) => s.interceptEnabled)
   const clearHistory = useProxyStore((s) => s.clearHistory)
+  const scopeRules = useProxyStore((s) => s.scopeRules)
+  const visibility = useProxyStore((s) => s.visibility)
+  const setVisibility = useProxyStore((s) => s.setVisibility)
+
+  const includeCount = scopeRules.filter(
+    (r) => r.rule_type === 'include' && (r.is_active === 1 || r.is_active === true),
+  ).length
 
   const downloadCaCert = async (): Promise<void> => {
     try {
@@ -75,6 +82,20 @@ export function ProxyView() {
         >
           <KeyRound size={12} />
           CA Cert
+        </button>
+        <button
+          className={`btn ghost sm ${visibility.onlyInScope ? 'primary' : ''}`}
+          style={{ margin: '6px 0' }}
+          onClick={() => setVisibility({ onlyInScope: !visibility.onlyInScope })}
+          title={
+            includeCount > 0
+              ? `Toggle: show only in-scope items (${includeCount} include rule${includeCount === 1 ? '' : 's'} active)`
+              : 'No include scope rules defined — add one in Settings → Scope for this to filter anything'
+          }
+        >
+          <Crosshair size={12} />
+          Scope: {includeCount === 0 ? 'none' : `${includeCount} rule${includeCount === 1 ? '' : 's'}`}
+          {visibility.onlyInScope ? ' · filtering' : ''}
         </button>
         <div style={{ flex: 1 }} />
         <button className="btn ghost sm" style={{ margin: '6px 0' }} onClick={() => void clearHistory()} title="Clear all history">

@@ -190,10 +190,12 @@ class PhantomAddon:
                 "method": req.method,
                 "host": parts.hostname or "",
                 "path": parts.path or "/",
+                "query_string": parts.query or None,
                 "url": req.pretty_url,
                 "status_code": resp.status_code if resp else None,
                 "response_time_ms": int((time.monotonic() - started) * 1000),
                 "size_bytes": len(resp.raw_content or b"") if resp else 0,
+                "is_in_scope": 1 if flow.metadata.get(META_IN_SCOPE, True) else 0,
             },
         )
 

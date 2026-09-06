@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { Send, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { historyService } from '../../services/proxyService'
@@ -8,12 +8,23 @@ import { useContextMenu, type MenuItem } from '../shared/ContextMenu'
 import { formatBytes, formatMs, formatTime, methodClass, statusClass } from '../../utils/formatters'
 
 export function RequestTable() {
-  const requests = useProxyStore((s) => s.requests)
+  const allRequests = useProxyStore((s) => s.requests)
+  const visibility = useProxyStore((s) => s.visibility)
+  const scopeRules = useProxyStore((s) => s.scopeRules)
   const selectedId = useProxyStore((s) => s.selectedId)
   const selectRequest = useProxyStore((s) => s.selectRequest)
   const refresh = useProxyStore((s) => s.refreshRequests)
+  const visibleRequests = useProxyStore((s) => s.visibleRequests)
   const contextMenu = useContextMenu()
   const lastCountRef = useRef(0)
+
+  const requests = useMemo(
+    () => visibleRequests(),
+    // visibility + scopeRules are deps; eslint may warn about store fn identity
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allRequests, visibility, scopeRules, visibleRequests],
+  )
+  const hiddenCount = allRequests.length - requests.length
 
   useEffect(() => {
     // brief highlight class for rows that arrived via WS
@@ -179,7 +190,9 @@ export function RequestTable() {
                 colSpan={8}
                 style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}
               >
-                No traffic yet — start the proxy and browse through it.
+                {hiddenCount > 0
+                  ? `${hiddenCount} entr${hiddenCount === 1 ? 'y' : 'ies'} hidden by display filters — adjust the Filters dropdown above.`
+                  : 'No traffic yet — start the proxy and browse through it.'}
               </td>
             </tr>
           )}

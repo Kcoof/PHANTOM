@@ -7,6 +7,7 @@ import { apiError } from '../../services/api'
 import { historyService } from '../../services/proxyService'
 import { scannerService } from '../../services/scannerService'
 import { settingsService } from '../../services/settingsService'
+import { hostMatchesPattern } from '../../utils/scope'
 import type { Finding } from '../../types/scanner'
 
 const SEVERITIES = ['critical', 'high', 'medium', 'low', 'info']
@@ -24,11 +25,7 @@ export function ScannerView() {
     try {
       const [t, rules] = await Promise.all([scannerService.targets(), settingsService.scope()])
       setTargets(t)
-      setScopeHosts(
-        rules
-          .filter((r) => r.rule_type === 'include')
-          .map((r) => r.host_pattern),
-      )
+      setScopeHosts(rules.filter((r) => r.rule_type === 'include').map((r) => r.host_pattern))
     } catch {
       /* transient — dropdown just stays empty */
     }
@@ -40,11 +37,7 @@ export function ScannerView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const hostInScope = (host: string) =>
-    scopeHosts.some((p) => {
-      const re = new RegExp('^' + p.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$', 'i')
-      return re.test(host)
-    })
+  const hostInScope = (host: string) => scopeHosts.some((p) => hostMatchesPattern(host, p))
 
   const addHostToScope = async (host: string) => {
     try {

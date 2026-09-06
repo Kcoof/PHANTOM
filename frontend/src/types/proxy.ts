@@ -23,10 +23,12 @@ export interface NewRequestEvent {
   method: string
   host: string
   path: string
+  query_string?: string | null
   url: string
   status_code: number | null
   response_time_ms: number | null
   size_bytes: number | null
+  is_in_scope?: number
 }
 
 export type ProxyRequest = ProxyRequestSummary
