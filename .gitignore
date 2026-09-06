@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.db
+*.sqlite3
+
+# Node
+node_modules/
+dist/
+dist-electron/
+release/
+*.local
+
+# Logs & misc
+*.log
+.DS_Store
+Thumbs.db
+
+# mitmproxy generated certs (keep source CA config, ignore runtime material)
+.mitmproxy/
+
+# Environment
+.env
+.env.*
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# Agent tooling scratch
+.zcode/
