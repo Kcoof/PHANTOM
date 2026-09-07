@@ -180,6 +180,7 @@ SEED_SETTINGS = [
     ("ai_provider", "ollama", "ai"),
     ("ai_model", "mistral", "ai"),
     ("ai_base_url", "http://localhost:11434", "ai"),
+    ("ai_api_key", "", "ai"),
     ("theme", "dark", "ui"),
     ("font_size", "13", "ui"),
 ]

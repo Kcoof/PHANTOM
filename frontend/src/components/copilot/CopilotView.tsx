@@ -57,7 +57,10 @@ export function CopilotView() {
         {!available && (
           <div style={{ padding: '8px 12px', background: 'rgba(255,193,7,0.07)', borderBottom: '1px solid var(--border-primary)', fontSize: 11.5, color: 'var(--severity-medium)', lineHeight: 1.5 }}>
             {store.status?.detail
-              ? `AI runtime unavailable — ${store.status.detail}. Start it with: ollama serve && ollama pull ${store.status.model}. All other modules keep working.`
+              ? `AI unavailable — ${store.status.detail}. ` +
+                (store.status.provider === 'openai'
+                  ? 'Set provider/model/base_url/key in Settings → AI (e.g. Groq: https://api.groq.com/openai/v1 + free key at console.groq.com).'
+                  : `Run it locally: ollama serve && ollama pull ${store.status.model} — or switch provider to a free cloud endpoint in Settings → AI.`)
               : 'Checking AI runtime…'}
           </div>
         )}

@@ -337,25 +337,47 @@ def test_global_search_literal_and_regex(client):
 
 
 def test_intruder_end_to_end(client):
-    # attack our own backend (localhost, no position left unmarked)
-    raw = "GET /api/health?probe=§orig§ HTTP/1.1\nHost: 127.0.0.1:8899"
-    r = client.post(
-        "/api/intruder/attacks",
-        json={"raw_request": raw, "payloads": ["alpha", "beta"], "grep_patterns": ["ok"], "name": "t"},
-    )
-    assert r.status_code == 201
-    attack_id = r.json()["attack_id"]
-    for _ in range(40):
-        time.sleep(0.25)
-        row = client.get(f"/api/intruder/attacks/{attack_id}").json()
-        if row["status"] in ("completed", "failed", "stopped"):
-            break
-    assert row["status"] == "completed"
-    results = client.get(f"/api/intruder/attacks/{attack_id}/results").json()
-    assert len(results) == 3  # baseline + 2 payloads
-    assert results[0]["is_baseline"] in (0, 1, True)
-    statuses = {r["status"] for r in results}
-    assert 200 in statuses  # our health endpoint answered
+    # spin up a real local HTTP server so the test owns its target
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            body = b'{"status":"ok","app":"phantom"}'
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    port = server.server_address[1]
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        raw = f"GET /x?probe=\u00a7orig\u00a7 HTTP/1.1\nHost: 127.0.0.1:{port}"
+        r = client.post(
+            "/api/intruder/attacks",
+            json={"raw_request": raw, "payloads": ["alpha", "beta"], "grep_patterns": ["phantom"], "name": "t"},
+        )
+        assert r.status_code == 201
+        attack_id = r.json()["attack_id"]
+        for _ in range(40):
+            time.sleep(0.25)
+            row = client.get(f"/api/intruder/attacks/{attack_id}").json()
+            if row["status"] in ("completed", "failed", "stopped"):
+                break
+        assert row["status"] == "completed"
+        results = client.get(f"/api/intruder/attacks/{attack_id}/results").json()
+        assert len(results) == 3  # baseline + 2 payloads
+        statuses = {r["status"] for r in results}
+        assert statuses == {200}
+        grep_hits = [r for r in results if r["matched"]]
+        assert len(grep_hits) == 3  # 'phantom' appears in every response
+    finally:
+        server.shutdown()
     # no positions -> 422
     bad = client.post("/api/intruder/attacks", json={"raw_request": "GET / HTTP/1.1", "payloads": ["x"]})
     assert bad.status_code == 422
