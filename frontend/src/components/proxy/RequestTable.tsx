@@ -73,6 +73,14 @@ export function RequestTable() {
         },
       },
       {
+        label: 'Plugins ▸ Parameter Miner',
+        onClick: async () => {
+          const { usePluginStore } = await import('../../stores/pluginStore')
+          await usePluginStore.getState().start('param-miner', { kind: 'request', history_id: id })
+          window.location.hash = '#/plugins'
+        },
+      },
+      {
         label: 'Scan this request',
         onClick: async () => {
           try {

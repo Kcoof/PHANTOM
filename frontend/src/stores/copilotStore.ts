@@ -17,6 +17,8 @@ interface CopilotStore {
   analyzeRequest: (historyId: number, label: string) => Promise<void>
   analyzeFinding: (findingId: number, label: string) => Promise<void>
   suggestPayloads: (url: string, parameter: string, vulnType: string) => Promise<void>
+  lastAssistantPayloads: () => string[]
+  sendLastToIntruder: () => Promise<void>
 }
 
 export const useCopilotStore = create<CopilotStore>((set, get) => ({
@@ -131,6 +133,55 @@ export const useCopilotStore = create<CopilotStore>((set, get) => ({
       },
     )
     set({ streaming: false })
+  },
+
+  lastAssistantPayloads: () => {
+    const msgs = get().messages
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role === 'assistant' && msgs[i].content.includes('```')) {
+        const text = msgs[i].content
+        const payloads: string[] = []
+        const fence = /```[a-zA-Z]*\n([\s\S]*?)```/g
+        let m: RegExpExecArray | null
+        while ((m = fence.exec(text)) !== null) {
+          m[1]
+            .split('\n')
+            .map((l) => l.replace(/\r$/, '').trim())
+            .filter(Boolean)
+            .forEach((l) => payloads.push(l))
+        }
+        return [...new Set(payloads)].slice(0, 50)
+      }
+    }
+    return []
+  },
+
+  sendLastToIntruder: async () => {
+    const payloads = get().lastAssistantPayloads()
+    if (!payloads.length) {
+      toast.error('No code-block payloads found in the last AI answer')
+      return
+    }
+    const { useIntruderStore } = await import('./intruderStore')
+    const intruder = useIntruderStore.getState()
+    intruder.setPayloads(payloads.join('\n'))
+    const ctx = get().context
+    if (ctx.type === 'request' && ctx.id != null) {
+      try {
+        const { historyService } = await import('../services/proxyService')
+        const d = await historyService.detail(ctx.id)
+        const u = new URL(d.url)
+        const lines = [`${d.method} ${u.pathname}${u.search} HTTP/1.1`, `Host: ${u.host}`]
+        Object.entries(d.request_headers ?? {}).forEach(([k, v]) => lines.push(`${k}: ${v}`))
+        let raw = lines.join('\n')
+        if (d.request_body) raw += `\n\n${d.request_body}`
+        intruder.setDraft(raw)
+      } catch {
+        /* draft stays as-is; user can paste a request */
+      }
+    }
+    toast.success(`${payloads.length} payloads loaded into Intruder — mark §positions§ and Launch`)
+    window.location.hash = '#/intruder'
   },
 
   suggestPayloads: async (url, parameter, vulnType) => {

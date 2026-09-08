@@ -159,6 +159,29 @@ CREATE TABLE IF NOT EXISTS intruder_results (
 
 CREATE INDEX IF NOT EXISTS idx_intruder_results_attack ON intruder_results(attack_id, idx);
 
+CREATE TABLE IF NOT EXISTS plugin_runs (
+    id TEXT PRIMARY KEY,
+    plugin_id TEXT NOT NULL,
+    target TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'running',
+    options TEXT,
+    done INTEGER DEFAULT 0,
+    total INTEGER DEFAULT 0,
+    error TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS plugin_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    data TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (run_id) REFERENCES plugin_runs(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_plugin_results_run ON plugin_results(run_id);
+
 CREATE INDEX IF NOT EXISTS idx_history_host ON proxy_history(host);
 CREATE INDEX IF NOT EXISTS idx_history_method ON proxy_history(method);
 CREATE INDEX IF NOT EXISTS idx_history_status ON proxy_history(status_code);

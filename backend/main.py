@@ -15,6 +15,7 @@ from api import (
     history_routes,
     intruder_routes,
     match_replace_routes,
+    plugin_routes,
     proxy_routes,
     repeater_routes,
     scanner_routes,
@@ -67,6 +68,7 @@ app.include_router(settings_routes.router, prefix="/api/settings", tags=["Settin
 app.include_router(intruder_routes.router, prefix="/api/intruder", tags=["Intruder"])
 app.include_router(search_routes.router, prefix="/api/search", tags=["Search"])
 app.include_router(match_replace_routes.router, prefix="/api/match-replace", tags=["Match & Replace"])
+app.include_router(plugin_routes.router, prefix="/api/plugins", tags=["Plugins"])
 app.include_router(websocket.router, tags=["WebSocket"])
 
 

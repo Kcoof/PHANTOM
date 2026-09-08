@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   Activity,
+  Blocks,
   BrainCircuit,
   Crosshair,
   Lock,
@@ -18,6 +19,7 @@ const ITEMS = [
   { to: '/repeater', label: 'Repeater', icon: Repeat2 },
   { to: '/intruder', label: 'Intruder', icon: Crosshair },
   { to: '/scanner', label: 'Scanner', icon: Radar },
+  { to: '/plugins', label: 'Plugins', icon: Blocks },
   { to: '/search', label: 'Search', icon: Search },
   { to: '/decoder', label: 'Decoder', icon: Lock },
   { to: '/copilot', label: 'AI Copilot', icon: BrainCircuit },

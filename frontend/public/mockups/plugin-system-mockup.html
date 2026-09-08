@@ -1,0 +1,191 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>PHANTOM — Plugin System mockup</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+:root {
+  --bg0:#0a0a0f; --bg1:#12121a; --bg2:#1a1a2e; --hov:#22223a; --act:#2a2a4a;
+  --b1:#2a2a3e; --b2:#4a4a6e; --tx:#e8e8f0; --t2:#8888a8; --t3:#555570;
+  --ac:#6c5ce7; --ac2:#00cec9; --glow:rgba(108,92,231,.3);
+  --crit:#ff3838; --hi:#ff6b35; --med:#ffc107; --lo:#00b894; --inf:#74b9ff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg0);color:var(--tx);font:13px Inter,sans-serif;padding:28px;overflow:auto}
+.mono{font-family:'JetBrains Mono',monospace}
+h1{font-size:19px;letter-spacing:.5px;margin-bottom:4px}
+.sub{color:var(--t3);font-size:12px;margin-bottom:26px}
+.screen{background:var(--bg1);border:1px solid var(--b1);border-radius:12px;overflow:hidden;margin-bottom:34px;box-shadow:0 12px 40px rgba(0,0,0,.45)}
+.tag{display:inline-block;background:var(--ac);color:#fff;border-radius:99px;padding:3px 14px;font:600 11px Inter;margin:0 0 12px 2px;letter-spacing:.5px}
+.row{display:flex}
+.side{width:52px;background:var(--bg1);border-right:1px solid var(--b1);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:5px;flex:0 0 auto}
+.ico{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--t2);font-size:15px}
+.ico.on{background:var(--ac);color:#fff;box-shadow:0 0 12px var(--glow)}
+.ico.on2{background:var(--ac2);color:#04211f}
+.ico .dot{width:7px;height:7px;border-radius:50%;background:var(--lo);margin-top:14px}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{height:40px;border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:12px;padding:0 14px;font-size:11px;color:var(--t2)}
+.top b{color:var(--tx);letter-spacing:1.5px;font-size:12px}
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--b2);border-radius:99px;padding:2px 10px;font:600 10px 'JetBrains Mono'}
+.pill.run{color:var(--lo);border-color:#00b89455}
+.pill.live{color:var(--ac2)}
+.bar{height:42px;border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:10px;padding:0 12px}
+.btn{border:1px solid var(--b1);background:var(--bg2);color:var(--tx);border-radius:8px;padding:6px 12px;font:500 11.5px Inter;display:inline-flex;gap:7px;align-items:center}
+.btn.pri{background:var(--ac);border-color:var(--ac);color:#fff;box-shadow:0 0 10px var(--glow)}
+.btn.gh{background:transparent}
+.btn.sel{background:var(--act);border-color:var(--b2)}
+.inp{background:var(--bg0);border:1px solid var(--b1);border-radius:8px;color:var(--t2);padding:6px 10px;font:11.5px 'JetBrains Mono'}
+table{border-collapse:collapse;width:100%;font:11.5px 'JetBrains Mono'}
+th{text-align:left;color:var(--t2);font:600 10px Inter;letter-spacing:.5px;padding:7px 10px;border-bottom:1px solid var(--b1);background:var(--bg2)}
+td{padding:6px 10px;border-bottom:1px solid var(--b1);color:var(--tx)}
+.g{color:var(--lo);font-weight:600}.r{color:var(--crit);font-weight:600}.y{color:var(--med)}.b{color:var(--inf)}
+.badge{display:inline-block;border-radius:99px;padding:2px 9px;font:600 10px 'JetBrains Mono';border:1px solid}
+.bv{color:var(--ac2);border-color:#00cec955;background:rgba(0,206,201,.08)}
+.prog{height:5px;background:var(--bg0);border-radius:3px;overflow:hidden;flex:1}
+.prog>i{display:block;height:100%;width:64%;background:linear-gradient(90deg,var(--ac),var(--ac2));animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.55}}
+.note{background:rgba(0,206,201,.06);border:1px dashed #00cec944;border-radius:9px;padding:9px 12px;color:var(--t2);font-size:11.5px;margin:10px 12px;line-height:1.6}
+.ctx{position:absolute;z-index:5;background:var(--bg2);border:1px solid var(--b2);border-radius:9px;padding:5px;min-width:215px;box-shadow:0 14px 34px rgba(0,0,0,.55)}
+.ctx div{padding:6px 10px;border-radius:6px;font-size:11.5px;color:var(--tx)}
+.ctx div.hd{color:var(--t3);font:600 9.5px Inter;letter-spacing:1px;padding-top:4px}
+.ctx div.sub2{padding-left:22px;color:var(--ac2)}
+.ctx div.sub2:hover,.ctx div:not(.hd):hover{background:var(--hov)}
+.chat{display:flex;flex-direction:column;gap:12px;padding:16px;overflow:auto}
+.msg{max-width:78%;padding:9px 13px;border-radius:12px;font-size:12.5px;line-height:1.65}
+.msg.u{align-self:flex-end;background:var(--act);border-radius:12px 12px 3px 12px}
+.msg.a{align-self:flex-start;background:var(--bg2);border-radius:12px 12px 12px 3px;border:1px solid var(--b1)}
+.msg pre{background:var(--bg0);border:1px solid var(--b1);border-radius:7px;padding:8px;margin:7px 0;font:11px 'JetBrains Mono';color:var(--ac2);overflow:auto}
+.send2i{display:inline-flex;gap:7px;align-items:center;margin-top:8px;background:rgba(108,92,231,.12);border:1px solid #6c5ce766;color:#b9adff;border-radius:8px;padding:6px 12px;font:600 11px Inter;cursor:pointer}
+.send2i:hover{background:rgba(108,92,231,.22)}
+.paneltitle{font:700 9.5px Inter;letter-spacing:1.3px;color:var(--t2);text-transform:uppercase;margin:0 0 7px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0}
+</style>
+</head>
+<body>
+
+<h1>🧩 PHANTOM Plugin System — the idea, visually</h1>
+<div class="sub">Mockup of the four pieces: Plugins view · Parameter Miner results · right-click launch · AI → Intruder bridge</div>
+
+<!-- ══════════ SCREEN 1: PLUGINS VIEW ══════════ -->
+<span class="tag">1 · New sidebar view — PLUGINS</span>
+<div class="screen">
+ <div class="row" style="min-height:430px">
+  <div class="side">
+    <div class="ico">◧</div><div class="ico">🛡</div><div class="ico">⟳</div><div class="ico">✚</div><div class="ico">◎</div><div class="ico">🔍</div><div class="ico on">🧩</div><div class="ico">🔓</div><div class="ico">🧠</div>
+    <div style="flex:1"></div><div class="ico">⚙</div><div class="ico"><span class="dot"></span></div>
+  </div>
+  <div class="main">
+    <div class="top"><b>PHANTOM</b><span style="color:var(--t3)">v1.0.0</span>
+      <div style="flex:1"></div><span class="pill run">● Proxy: Running :8080</span>
+      <span class="btn pri" style="padding:3px 10px">■ Stop</span></div>
+    <div class="bar">
+      <span style="color:var(--ac);font-weight:700">🧩 Plugins</span>
+      <select class="inp"><option>Parameter Miner</option></select>
+      <select class="inp"><option>target: GET checkout.shopify.com/cart</option></select>
+      <select class="inp"><option>wordlist: common-500</option></select>
+      <span class="btn pri">▶ Run</span>
+      <div style="flex:1"></div>
+      <span style="color:var(--t2);font-size:11px">3 plugins · 12 runs</span>
+    </div>
+    <div class="bar" style="background:var(--bg2);height:34px">
+      <span class="pill live">● running</span>
+      <div class="prog"><i></i></div>
+      <span class="mono" style="font-size:10.5px;color:var(--t2)">318 / 500 probes · 2 batches isolated</span>
+    </div>
+    <div style="flex:1;overflow:auto">
+    <table>
+      <tr><th style="width:36px">✓</th><th>PARAMETER</th><th>DETECTED VIA</th><th>EVIDENCE</th><th>RESPONSE Δ</th><th style="width:90px">ACTION</th></tr>
+      <tr><td class="g">✓</td><td class="g">debug</td><td>reflection</td><td>canary <span class="b">pmt_9f2a</span> echoed in JSON body</td><td class="y">+412 B</td><td><span class="btn gh" style="padding:2px 8px;font-size:10.5px">→ Repeater</span></td></tr>
+      <tr><td class="g">✓</td><td class="g">internal_price</td><td>behavior</td><td>status 200→<span class="y">403</span> when present</td><td class="y">−1.9 KB</td><td><span class="btn gh" style="padding:2px 8px;font-size:10.5px">→ Repeater</span></td></tr>
+      <tr><td class="g">✓</td><td class="g">user_id</td><td>reflection</td><td>canary <span class="b">pmt_4c71</span> in error message</td><td class="y">+88 B</td><td><span class="btn gh" style="padding:2px 8px;font-size:10.5px">→ Repeater</span></td></tr>
+      <tr><td style="color:var(--t3)">·</td><td style="color:var(--t3)">admin</td><td>—</td><td>not accepted (baseline match)</td><td>0</td><td></td></tr>
+      <tr><td style="color:var(--t3)">·</td><td style="color:var(--t3)">redirect_uri</td><td>—</td><td>not accepted</td><td>0</td><td></td></tr>
+    </table>
+    <div class="note">💡 Discovered parameters are also created as <b style="color:var(--inf)">info findings</b> → they flow into your existing pipeline: scope filter → AI Triage → report export. Click <b>→ Repeater</b> to probe one instantly.</div>
+    </div>
+    <div class="bar" style="height:24px;border-top:1px solid var(--b1);border-bottom:none;font:11px Inter;color:var(--t2)">
+      <span>● Plugin: Parameter Miner</span><span style="margin-left:12px">Requests: 318</span><span style="margin-left:12px">Throttle: 250 ms ✓ scope-gated ✓</span>
+      <div style="flex:1"></div><span>Live: connected</span></div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════ SCREEN 2: CONTEXT MENU ══════════ -->
+<span class="tag">2 · Launch from anywhere — right-click in Proxy</span>
+<div class="screen" style="padding:0">
+ <div class="row" style="position:relative;min-height:300px">
+  <div class="main" style="padding:14px">
+    <table>
+      <tr><th>#</th><th>METHOD</th><th>HOST</th><th>PATH</th><th>STATUS</th></tr>
+      <tr style="background:var(--hov)"><td>4102</td><td class="g">GET</td><td>checkout.shopify.com</td><td>/cart</td><td class="g">200</td></tr>
+      <tr><td>4101</td><td class="g">GET</td><td>cdn.shopify.com</td><td>/assets/theme.css</td><td class="g">200</td></tr>
+    </table>
+  </div>
+  <div class="ctx" style="top:38px;left:46%">
+    <div class="hd">REQUEST #4102</div>
+    <div>↗ Send to Repeater</div>
+    <div>✚ Send to Intruder</div>
+    <div>🧠 AI Analyze</div>
+    <div class="hd">PLUGINS ▸</div>
+    <div class="sub2">⛏ Parameter Miner</div>
+    <div class="sub2" style="color:var(--t3)">＋ more plugins…</div>
+    <div style="border-top:1px solid var(--b1);margin-top:4px;border-radius:0;padding-top:9px" class="r">🗑 Delete entry</div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════ SCREEN 3: FINDING DETAIL ACTIONS ══════════ -->
+<span class="tag">3 · From a finding — run plugin or AI, side by side</span>
+<div class="screen" style="padding:18px">
+  <div class="grid2">
+   <div>
+    <p class="paneltitle">Finding #2488 · Missing HSTS</p>
+    <div style="font-size:12.5px;line-height:1.7;color:var(--t2);padding-right:20px">
+      The response does not include <span class="mono">strict-transport-security</span>…<br><br>
+      <span class="badge bv">AI ✓ REAL · priority 4</span><br><br>
+      <i style="color:var(--t3)">“Cookie set without Secure flag on HTTPS login flow — verify with a forced-HTTP request.”</i>
+    </div>
+   </div>
+   <div>
+    <p class="paneltitle">Actions</p>
+    <div style="display:flex;flex-direction:column;gap:9px;align-items:flex-start">
+      <span class="btn">⛏ Run Parameter Miner on this request</span>
+      <span class="btn">🧠 Analyze with AI Copilot</span>
+      <span class="btn">↗ Reproduce in Repeater</span>
+      <span class="btn gh" style="color:var(--med)">⚡ Send AI payloads → Intruder</span>
+    </div>
+   </div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN 4: AI → INTRUDER BRIDGE ══════════ -->
+<span class="tag">4 · AI suggests → one click executes</span>
+<div class="screen">
+ <div class="row" style="min-height:320px">
+  <div class="side">
+    <div class="ico">◧</div><div class="ico">🛡</div><div class="ico">⟳</div><div class="ico">✚</div><div class="ico">◎</div><div class="ico">🔍</div><div class="ico">🧩</div><div class="ico">🔓</div><div class="ico on">🧠</div>
+    <div style="flex:1"></div><div class="ico">⚙</div>
+  </div>
+  <div class="main">
+    <div class="top"><b>PHANTOM AI COPILOT</b><span class="pill" style="color:var(--lo);border-color:#00b89455">ONLINE · gpt-oss-120b</span>
+      <div style="flex:1"></div><span class="btn gh" style="padding:3px 10px">New chat</span></div>
+    <div class="chat">
+      <div class="msg u">Analyze finding #2488 — how do I verify the missing Secure flag?</div>
+      <div class="msg a">…send the login request over plain HTTP and check if the cookie still lacks <span class="mono">Secure</span>. Try these payloads on the <span class="mono">next</span> parameter:
+        <pre>https://checkout.shopify.com/login?next=%2Fadmin
+?next=javascript:alert(1)
+?next=//evil.example/log?c=…
+?next=%2F%2Fevil.example</pre>
+        <div class="send2i">⚡ Send these 4 payloads to Intruder →</div>
+        <div style="font-size:10px;color:var(--t3);margin-top:6px">pre-fills the request from context · §positions§ marked on <span class="mono">next</span></div>
+      </div>
+    </div>
+  </div>
+ </div>
+</div>
+
+<div class="note" style="max-width:900px">This is a static mockup of the plan — say <b style="color:var(--ac2)">“go”</b> and the real thing gets built spec-first: plugin framework → Parameter Miner (batched canary probing + bisection, throttle + scope respected) → this UI → the AI→Intruder bridge.</div>
+
+</body>
+</html>

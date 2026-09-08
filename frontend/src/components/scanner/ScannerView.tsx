@@ -433,17 +433,31 @@ function FindingDetail({ finding }: { finding: Finding }) {
       )}
 
       <section>
-        <SectionTitle>AI</SectionTitle>
-        <button
-          className="btn sm primary"
-          onClick={async () => {
-            const { useCopilotStore } = await import('../../stores/copilotStore')
-            void useCopilotStore.getState().analyzeFinding(finding.id, finding.title)
-            window.location.hash = '#/copilot'
-          }}
-        >
-          <BrainCircuit size={11} /> Analyze with AI Copilot
-        </button>
+        <SectionTitle>AI & Plugins</SectionTitle>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            className="btn sm primary"
+            onClick={async () => {
+              const { useCopilotStore } = await import('../../stores/copilotStore')
+              void useCopilotStore.getState().analyzeFinding(finding.id, finding.title)
+              window.location.hash = '#/copilot'
+            }}
+          >
+            <BrainCircuit size={11} /> Analyze with AI Copilot
+          </button>
+          {finding.history_id != null && (
+            <button
+              className="btn sm"
+              onClick={async () => {
+                const { usePluginStore } = await import('../../stores/pluginStore')
+                void usePluginStore.getState().start('param-miner', { kind: 'request', history_id: finding.history_id })
+                window.location.hash = '#/plugins'
+              }}
+            >
+              ⛏ Run Parameter Miner
+            </button>
+          )}
+        </div>
       </section>
     </div>
   )

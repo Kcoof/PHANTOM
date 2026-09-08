@@ -8,6 +8,7 @@ import { RepeaterView } from './components/repeater/RepeaterView'
 import { IntruderView } from './components/intruder/IntruderView'
 import { SearchView } from './components/search/SearchView'
 import { ScannerView } from './components/scanner/ScannerView'
+import { PluginsView } from './components/plugins/PluginsView'
 import { CopilotView } from './components/copilot/CopilotView'
 import { DashboardView } from './components/dashboard/DashboardView'
 import { DecoderView } from './components/decoder/DecoderView'
@@ -34,6 +35,7 @@ function AppShell() {
         <Route path="/intruder" element={<IntruderView />} />
         <Route path="/search" element={<SearchView />} />
         <Route path="/scanner" element={<ScannerView />} />
+        <Route path="/plugins" element={<PluginsView />} />
         <Route path="/decoder" element={<DecoderView />} />
         <Route path="/copilot" element={<CopilotView />} />
         <Route path="/settings" element={<SettingsView />} />

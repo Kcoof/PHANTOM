@@ -435,3 +435,97 @@ def test_in_scope_only_scan_focuses_targets(client):
     findings = client.get(f"/api/scanner/findings?scan_id={scan['id']}").json()
     assert findings, "in-scope host should produce findings"
     assert all("inscope.test" in f["url"] for f in findings), "no out-of-scope findings allowed"
+
+
+# --- spec 005: plugin system / parameter miner -----------------------------------
+
+def test_plugin_registry(client):
+    plugins = client.get("/api/plugins").json()
+    assert any(p["id"] == "param-miner" for p in plugins)
+    pm = next(p for p in plugins if p["id"] == "param-miner")
+    assert "request" in pm["accepts"] and pm["parameters"]
+
+
+def test_param_miner_finds_planted_hidden_params(client):
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    from urllib.parse import parse_qs, urlsplit
+
+    # planted: debug (reflected), admin (behavior: different body), format (reflected)
+    HIDDEN = {"debug": "reflect", "admin": "behavior", "format": "reflect"}
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            q = {k: v[0] for k, v in parse_qs(urlsplit(self.path).query).items()}
+            if "debug" in q:
+                body = f'{{"debug":"{q["debug"]}","ok":true}}'.encode()
+            elif "format" in q:
+                body = f'output-format={q["format"]} rendering'.encode()
+            elif "admin" in q:
+                body = b"ADMIN PANEL ENABLED " + b"x" * 200
+            else:
+                body = b'{"ok":true}'
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    port = server.server_address[1]
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+
+    # in-scope rule so the miner may probe, and a history entry to mine
+    import sqlite3
+
+    client.post("/api/settings/scope", json={"rule_type": "include", "host_pattern": "127.0.0.1"})
+    db = sqlite3.connect(config.DB_PATH)
+    cur = db.execute(
+        """INSERT INTO proxy_history (method, scheme, host, port, path, url, request_headers, status_code, response_headers, response_body)
+           VALUES ('GET', 'http', '127.0.0.1', ?, '/x', ?, '{}', 200, '{}', '{"ok":true}')""",
+        (port, f"http://127.0.0.1:{port}/x"),
+    )
+    db.commit()
+    entry_id = cur.lastrowid
+    db.close()
+
+    try:
+        r = client.post(
+            "/api/plugins/param-miner/run",
+            json={"context": {"kind": "request", "history_id": entry_id},
+                  "options": {"wordlist": "shallow-60", "batch_size": 20}},
+        )
+        assert r.status_code == 201, r.text
+        run_id = r.json()["run_id"]
+        for _ in range(120):
+            time.sleep(0.25)
+            run = client.get(f"/api/plugins/runs/{run_id}").json()
+            if run["status"] in ("completed", "failed", "stopped"):
+                break
+        assert run["status"] == "completed", run.get("error")
+        results = client.get(f"/api/plugins/runs/{run_id}/results").json()
+        found = {r["data"]["name"] for r in results if r["kind"] == "param"}
+        assert found == set(HIDDEN), f"expected exactly the planted params, got {found}"
+        # findings were created too
+        f = client.get("/api/scanner/findings").json()
+        hidden = {x["parameter"] for x in f if x["finding_type"] == "hidden_param"}
+        assert set(HIDDEN) <= hidden
+    finally:
+        server.shutdown()
+
+
+def test_param_miner_out_of_scope_rejected(client):
+    _seed_body("<html>x</html>", "https://notinscope.test/p", "/p")
+    client.post("/api/settings/scope", json={"rule_type": "include", "host_pattern": "inscope.test"})
+    r = client.post(
+        "/api/plugins/param-miner/run",
+        json={"context": {"kind": "request", "history_id": client.get("/api/history?search=notinscope").json()["items"][0]["id"]}},
+    )
+    assert r.status_code == 201
+    time.sleep(1.5)
+    run = client.get(f"/api/plugins/runs/{r.json()['run_id']}").json()
+    assert run["status"] == "failed"
+    assert "scope" in (run.get("error") or "")

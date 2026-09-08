@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useProxyStore } from '../stores/proxyStore'
 import { useScannerStore } from '../stores/scannerStore'
 import { useIntruderStore } from '../stores/intruderStore'
+import { usePluginStore } from '../stores/pluginStore'
 
 type Handler = (data: unknown) => void
 
@@ -82,6 +83,7 @@ export function usePhantomWebSocket(onEvent?: Handler): void {
           useProxyStore.getState().handleWsEvent(msg.event, msg.data)
           useScannerStore.getState().handleWsEvent(msg.event, msg.data)
           useIntruderStore.getState().handleWsEvent(msg.event, msg.data)
+          usePluginStore.getState().handleWsEvent(msg.event, msg.data)
           handlerRef.current?.(msg)
         } catch {
           /* ignore malformed frame */

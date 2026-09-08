@@ -96,7 +96,7 @@ export function CopilotView() {
               <Send size={13} />
             </button>
           </div>
-          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+          <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
             {[
               { label: 'Analyze last request', run: () => void store.send('Analyze the most recent captured request in my proxy history for security issues.') },
               { label: 'Write report', run: () => void store.send('Write a brief executive summary of my current findings.') },
@@ -105,6 +105,16 @@ export function CopilotView() {
                 {q.label}
               </button>
             ))}
+            {!store.streaming && store.lastAssistantPayloads().length > 0 && (
+              <button
+                className="btn sm"
+                style={{ background: 'rgba(108,92,231,0.14)', borderColor: '#6c5ce766', color: '#b9adff' }}
+                title="Load the payloads from the last AI answer into the Intruder (request from context is pre-filled)"
+                onClick={() => void store.sendLastToIntruder()}
+              >
+                ⚡ Send {store.lastAssistantPayloads().length} payloads to Intruder →
+              </button>
+            )}
           </div>
         </div>
       </div>
