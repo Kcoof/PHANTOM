@@ -418,3 +418,20 @@ def test_ai_verdict_column_migrated():
     cols = [r[1] for r in db.execute("PRAGMA table_info(scanner_findings)").fetchall()]
     db.close()
     assert "ai_verdict" in cols
+
+
+def test_in_scope_only_scan_focuses_targets(client):
+    _seed_body("<html>a</html>", "https://inscope.test/x", "/x")
+    _seed_body("<html>b</html>", "https://outsidetest.test/y", "/y")
+    client.post("/api/settings/scope", json={"rule_type": "include", "host_pattern": "inscope.test"})
+    r = client.post(
+        "/api/scanner/scan",
+        json={"scan_type": "passive", "in_scope_only": True},
+    )
+    assert r.status_code == 201
+    time.sleep(1.5)
+    scan = client.get(f"/api/scanner/scans/{r.json()['scan_id']}").json()
+    assert scan["target_url"] == "in-scope hosts"
+    findings = client.get(f"/api/scanner/findings?scan_id={scan['id']}").json()
+    assert findings, "in-scope host should produce findings"
+    assert all("inscope.test" in f["url"] for f in findings), "no out-of-scope findings allowed"

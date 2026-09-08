@@ -29,6 +29,7 @@ class ScanStartIn(BaseModel):
     history_ids: list[int] | None = None
     scan_type: str = "passive"
     checks: list[str] | None = None
+    in_scope_only: bool = False
 
     @field_validator("scan_type")
     @classmethod
@@ -47,6 +48,7 @@ async def start_scan(body: ScanStartIn) -> dict:
             history_ids=body.history_ids,
             scan_type=body.scan_type,
             selected_checks=body.checks,
+            in_scope_only=body.in_scope_only,
         )
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))

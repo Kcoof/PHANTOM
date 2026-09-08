@@ -60,6 +60,8 @@ export function ScannerView() {
     (r) => r.rule_type === 'include' && (r.is_active === 1 || r.is_active === true),
   )
   const hostInScope = (host: string) => hostInScopeFn(scopeRules, host)
+  const inScopeTargetCount = targets.filter((t) => hostInScope(t.host)).length
+  const IN_SCOPE = '__in_scope__'
 
   const findingHostInScope = (f: Finding) => {
     try {
@@ -133,9 +135,12 @@ export function ScannerView() {
           title="Scan target — hosts seen in your proxy history"
           value={targetHost}
           onChange={(e) => setTargetHost(e.target.value)}
-          style={{ width: 240 }}
+          style={{ width: 260 }}
         >
           <option value="">All captured hosts ({targets.reduce((a, t) => a + t.count, 0)} requests)</option>
+          <option value={IN_SCOPE}>
+            In-scope hosts — {includeRules.length === 0 ? 'no rules, = all' : `${inScopeTargetCount} host${inScopeTargetCount === 1 ? '' : 's'} (${targets.filter((t) => hostInScope(t.host)).reduce((a, t) => a + t.count, 0)} requests)`}
+          </option>
           {targets.map((t) => (
             <option key={t.host} value={t.host}>
               {t.host} ({t.count})
@@ -158,7 +163,7 @@ export function ScannerView() {
         <button
           className="btn primary sm"
           disabled={store.starting}
-          onClick={() => void store.startScan(scanType, selected, targetHost)}
+          onClick={() => void store.startScan(scanType, selected, targetHost === IN_SCOPE ? undefined : targetHost || undefined, targetHost === IN_SCOPE)}
         >
           {store.starting ? 'Starting…' : 'Start scan'}
         </button>
@@ -167,12 +172,20 @@ export function ScannerView() {
             Pick a target host for active scanning
           </span>
         )}
-        {scanType !== 'passive' && targetHost && !hostInScope(targetHost) && (
+        {scanType !== 'passive' && targetHost === IN_SCOPE && includeRules.length === 0 && (
+          <span style={{ fontSize: 10.5, color: 'var(--severity-medium)' }}>
+            No scope rules yet — add one in Settings → Scope
+          </span>
+        )}
+        {scanType !== 'passive' && targetHost === IN_SCOPE && includeRules.length > 0 && (
+          <span style={{ fontSize: 10.5, color: 'var(--severity-low)' }}>✓ in-scope hosts · authorized targets only</span>
+        )}
+        {scanType !== 'passive' && targetHost && targetHost !== IN_SCOPE && !hostInScope(targetHost) && (
           <button className="btn sm" style={{ color: 'var(--severity-medium)' }} onClick={() => void addHostToScope(targetHost)}>
             Add {targetHost} to scope
           </button>
         )}
-        {scanType !== 'passive' && targetHost && hostInScope(targetHost) && (
+        {scanType !== 'passive' && targetHost && targetHost !== IN_SCOPE && hostInScope(targetHost) && (
           <span style={{ fontSize: 10.5, color: 'var(--severity-low)' }}>✓ {targetHost} in scope · authorized targets only</span>
         )}
         <div style={{ flex: 1 }} />

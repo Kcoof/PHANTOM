@@ -124,6 +124,7 @@ class ScannerEngine:
         history_ids: list[int] | None,
         scan_type: str,
         selected_checks: list[str] | None,
+        in_scope_only: bool = False,
     ) -> str:
         # Load candidate entries: explicit ids, or recent history for the target
         if history_ids:
@@ -137,6 +138,9 @@ class ScannerEngine:
             entries = await database.fetch_all(
                 f"SELECT * FROM proxy_history {where} ORDER BY id DESC LIMIT 500", params
             )
+        if in_scope_only and not history_ids:
+            # focus the scan on the current scope rules (live evaluation)
+            entries = [e for e in entries if await url_in_scope(e["url"])]
 
         checks = get_checks(selected_checks)
         if scan_type in ("active", "full"):
@@ -170,7 +174,7 @@ class ScannerEngine:
         await database.execute(
             """INSERT INTO scans (id, target_url, scan_type, status, config, started_at)
                VALUES (?, ?, ?, 'running', ?, ?)""",
-            (scan_id, target_url or "(history)", scan_type, json.dumps({"checks": [c.check_type for c in checks]}), now),
+            (scan_id, "in-scope hosts" if in_scope_only else (target_url or "(history)"), scan_type, json.dumps({"checks": [c.check_type for c in checks]}), now),
         )
         session = ScanSession(scan_id, checks, entries)
         self.sessions[scan_id] = session

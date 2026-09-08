@@ -20,6 +20,7 @@ export const scannerService = {
     target_url?: string
     scan_type: 'active' | 'passive' | 'full'
     checks?: string[]
+    in_scope_only?: boolean
   }): Promise<{ scan_id: string }> {
     const { data } = await api.post('/scanner/scan', body)
     return data
