@@ -12,12 +12,14 @@ interface ScannerStore {
   selectedFinding: Finding | null
   progress: Record<string, ScanProgressEvent>
   starting: boolean
+  triageProgress: { done: number; total: number; tagged: number } | null
 
   load: () => Promise<void>
   startScan: (type: 'active' | 'passive' | 'full', selected: string[], targetHost?: string) => Promise<void>
   selectFinding: (f: Finding | null) => void
   setFindingStatus: (id: number, status: string) => Promise<void>
   control: (scanId: string, action: 'pause' | 'resume' | 'stop') => Promise<void>
+  runTriage: () => Promise<void>
   handleWsEvent: (event: string, data: unknown) => void
 }
 
@@ -28,6 +30,7 @@ export const useScannerStore = create<ScannerStore>((set, get) => ({
   selectedFinding: null,
   progress: {},
   starting: false,
+  triageProgress: null,
 
   load: async () => {
     try {
@@ -86,6 +89,15 @@ export const useScannerStore = create<ScannerStore>((set, get) => ({
     }
   },
 
+  runTriage: async () => {
+    try {
+      const r = await scannerService.triage()
+      toast.success(`AI triage started on ${r.count} findings (${r.batches} batches)`)
+    } catch (err) {
+      toast.error(`Triage failed: ${apiError(err)}`)
+    }
+  },
+
   handleWsEvent: (event, data) => {
     if (event === 'scan_finding') {
       const finding = data as Finding
@@ -96,6 +108,13 @@ export const useScannerStore = create<ScannerStore>((set, get) => ({
       if (p.status === 'completed' || p.status === 'failed' || p.status === 'stopped') {
         void get().load()
       }
+    } else if (event === 'ai_triage_progress') {
+      set({ triageProgress: data as { done: number; total: number; tagged: number } })
+    } else if (event === 'ai_triage_done') {
+      const d = data as { done: number; total: number; tagged: number }
+      toast.success(`AI triage finished — ${d.tagged}/${d.total} findings tagged`)
+      set({ triageProgress: null })
+      void get().load()
     }
   },
 }))

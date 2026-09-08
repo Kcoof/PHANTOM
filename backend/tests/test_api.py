@@ -384,3 +384,37 @@ def test_intruder_end_to_end(client):
     # wordlists available
     wl = client.get("/api/intruder/wordlists").json()
     assert "sqli-basic" in wl and wl["sqli-basic"] >= 5
+
+
+# --- spec 004: AI auto-triage -----------------------------------------------------
+
+def test_parse_triage_json_tolerant():
+    from api.ai_routes import parse_triage_json
+
+    ok = parse_triage_json(
+        'Here you go:\n[{"id": 1, "verdict": "likely-real", "reason": "secret in body", "priority": 5},\n'
+        '{"id": 2, "verdict": "likely-fp", "reason": "static asset", "priority": 1},]'
+    )
+    assert len(ok) == 2
+    assert ok[0]["verdict"] == "likely-real" and ok[0]["priority"] == 5
+    assert ok[1]["verdict"] == "likely-fp"
+    # invalid verdicts and ids are dropped
+    bad = parse_triage_json('[{"id": "x", "verdict": "likely-real"}, {"id": 3, "verdict": "maybe"}]')
+    assert bad == []
+    assert parse_triage_json("no json at all") == []
+
+
+def test_triage_endpoint_requires_runtime(client):
+    # no AI runtime in the test env -> same graceful 503 contract as chat
+    r = client.post("/api/ai/triage", json={})
+    assert r.status_code in (503, 422)  # 422 when no findings exist, 503 when no runtime
+    assert "detail" in r.json()
+
+
+def test_ai_verdict_column_migrated():
+    import sqlite3
+
+    db = sqlite3.connect(config.DB_PATH)
+    cols = [r[1] for r in db.execute("PRAGMA table_info(scanner_findings)").fetchall()]
+    db.close()
+    assert "ai_verdict" in cols

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Ban, CheckCircle2, FileDown, FileText, Pause, Play, Radar, Square, Wrench } from 'lucide-react'
+import { Ban, BrainCircuit, CheckCircle2, FileDown, FileText, Pause, Play, Radar, Square, Wrench } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useScannerStore } from '../../stores/scannerStore'
 import { SeverityBadge } from '../shared/Badge'
@@ -151,6 +151,17 @@ export function ScannerView() {
           ))}
         </select>
         <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{store.findings.length} findings</span>
+        <button
+          className="btn sm"
+          disabled={!!store.triageProgress}
+          title="Let the AI review the findings list and flag likely false positives"
+          onClick={() => void store.runTriage()}
+        >
+          <BrainCircuit size={12} />
+          {store.triageProgress
+            ? `Triaging ${store.triageProgress.done}/${store.triageProgress.total}…`
+            : 'AI Triage'}
+        </button>
         <span style={{ position: 'relative' }}>
           <button
             className="btn sm"
@@ -240,6 +251,7 @@ export function ScannerView() {
                 <span style={{ fontSize: 12, fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {f.title}
                 </span>
+                {f.ai_verdict && <AiVerdictBadge verdict={f.ai_verdict.verdict} />}
                 {(f.status ?? 'open') !== 'open' && (
                   <span style={{ fontSize: 9.5, color: f.status === 'false_positive' ? 'var(--text-muted)' : 'var(--severity-low)' }}>
                     {(f.status ?? '').replace('_', ' ')}
@@ -320,6 +332,23 @@ function FindingDetail({ finding }: { finding: Finding }) {
         </section>
       )}
 
+      {finding.ai_verdict && (
+        <section>
+          <SectionTitle>AI assessment</SectionTitle>
+          <div className="panel" style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <AiVerdictBadge verdict={finding.ai_verdict.verdict} />
+              <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                priority {finding.ai_verdict.priority}/5
+                {finding.ai_verdict.model ? ` · ${finding.ai_verdict.model}` : ''}
+              </span>
+            </div>
+            <p style={{ fontSize: 12, lineHeight: 1.5 }}>{finding.ai_verdict.reason}</p>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>advisory — your own status always wins</span>
+          </div>
+        </section>
+      )}
+
       {finding.history_id != null && (
         <section>
           <SectionTitle>Actions</SectionTitle>
@@ -349,5 +378,23 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
     <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase' }}>
       {children}
     </div>
+  )
+}
+
+const VERDICT_STYLE: Record<string, { label: string; color: string }> = {
+  'likely-real': { label: 'AI ✓ REAL', color: 'var(--severity-low)' },
+  'likely-fp': { label: 'AI ✗ FP', color: 'var(--severity-critical)' },
+  'needs-manual': { label: 'AI ? CHECK', color: 'var(--severity-medium)' },
+}
+
+function AiVerdictBadge({ verdict }: { verdict: string }) {
+  const s = VERDICT_STYLE[verdict] ?? VERDICT_STYLE['needs-manual']
+  return (
+    <span
+      className="badge"
+      style={{ background: `${s.color}18`, color: s.color, border: `1px solid ${s.color}55`, fontSize: 9 }}
+    >
+      {s.label}
+    </span>
   )
 }

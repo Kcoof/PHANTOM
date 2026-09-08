@@ -19,6 +19,13 @@ export interface Scan {
   completed_at: string | null
 }
 
+export interface AiVerdict {
+  verdict: 'likely-real' | 'likely-fp' | 'needs-manual'
+  reason: string
+  priority: number
+  model?: string
+}
+
 export interface Finding {
   id: number
   scan_id: string
@@ -38,6 +45,7 @@ export interface Finding {
   remediation: string | null
   cwe_id: string | null
   status: 'open' | 'confirmed' | 'fixed' | 'false_positive'
+  ai_verdict: AiVerdict | null
 }
 
 export interface ScanProgressEvent {

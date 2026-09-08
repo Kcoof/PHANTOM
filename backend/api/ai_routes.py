@@ -1,6 +1,7 @@
-"""AI Copilot API — /api/ai with SSE streaming (contracts/api.md)."""
+"""AI Copilot API — /api/ai with SSE streaming (contracts/api.md + spec 004 triage)."""
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import AsyncIterator
 
@@ -159,3 +160,167 @@ async def conversations() -> list[dict]:
 @router.get("/status")
 async def ai_status() -> dict:
     return await get_ai_engine().status()
+
+
+# --- AI auto-triage (spec 004) -------------------------------------------------
+
+SEVERITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
+VALID_VERDICTS = {"likely-real", "likely-fp", "needs-manual"}
+
+
+def parse_triage_json(text: str) -> list[dict]:
+    """Tolerantly extract the JSON verdict array from a model response."""
+    import re as _re
+
+    start, end = text.find("["), text.rfind("]")
+    if start == -1 or end <= start:
+        return []
+    candidate = text[start : end + 1]
+    try:
+        data = json.loads(candidate)
+    except json.JSONDecodeError:
+        candidate2 = _re.sub(r",\s*]", "]", candidate)  # trailing commas
+        try:
+            data = json.loads(candidate2)
+        except json.JSONDecodeError:
+            return []
+    out = []
+    if not isinstance(data, list):
+        return []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        verdict = str(item.get("verdict", "")).strip().lower()
+        if verdict not in VALID_VERDICTS:
+            continue
+        try:
+            fid = int(item.get("id"))
+        except (TypeError, ValueError):
+            continue
+        try:
+            priority = max(1, min(5, int(item.get("priority", 3))))
+        except (TypeError, ValueError):
+            priority = 3
+        out.append(
+            {
+                "id": fid,
+                "verdict": verdict,
+                "reason": str(item.get("reason", ""))[:200],
+                "priority": priority,
+            }
+        )
+    return out
+
+
+def _triage_prompt(batch: list[dict]) -> str:
+    lines = []
+    for f in batch:
+        evidence = (f.get("evidence") or "")[:140].replace("\n", " ")
+        lines.append(
+            f"#{f['id']} [{f['severity']}/{f['finding_type']}/{f['confidence']}] "
+            f"{f['title']} — {f['url']} | evidence: {evidence or '(none)'}"
+        )
+    return (
+        "You are triaging automated security-scanner findings. Judge each one: is it a real, "
+        "reportable security issue, or scanner noise / false positive / informational-only?\n"
+        "Context heuristics: missing CSP/header findings on static assets are usually low value; "
+        "cookie-flag and CSRF findings on API/CORS endpoints are often false positives; "
+        "secret/credential findings and reflected payloads are high value if evidence matches.\n"
+        "Respond ONLY with a JSON array, one object per finding, exactly:\n"
+        '[{"id": <finding id>, "verdict": "likely-real"|"likely-fp"|"needs-manual", '
+        '"reason": "<=20 words", "priority": 1-5}]\n'
+        "priority: 5 = report immediately, 1 = ignore.\n\nFindings:\n" + "\n".join(lines)
+    )
+
+
+_triage_task: asyncio.Task | None = None
+
+
+class TriageIn(BaseModel):
+    severity: str | None = None
+    scan_id: str | None = None
+    limit: int = 100
+
+
+@router.post("/triage")
+async def start_triage(body: TriageIn | None = None):
+    global _triage_task
+    await _require_runtime()
+    if _triage_task is not None and not _triage_task.done():
+        raise HTTPException(status_code=409, detail="a triage run is already in progress")
+    body = body or TriageIn()
+
+    where, params = "status != 'false_positive' AND ai_verdict IS NULL", []
+    if body.severity:
+        where += " AND severity = ?"
+        params.append(body.severity)
+    if body.scan_id:
+        where += " AND scan_id = ?"
+        params.append(body.scan_id)
+    findings = await database.fetch_all(
+        f"SELECT * FROM scanner_findings WHERE {where} ORDER BY id DESC LIMIT 500", tuple(params)
+    )
+    findings.sort(key=lambda f: (SEVERITY_RANK.get(f["severity"], 9), -f["id"]))
+    findings = findings[: max(1, min(body.limit, 100))]
+    if not findings:
+        raise HTTPException(status_code=422, detail="no findings to triage")
+
+    engine = get_ai_engine()
+    model_name = (await engine.current_config())["model"]
+
+    async def run():
+        global _triage_task
+        done = 0
+        tagged = 0
+        batches = [findings[i : i + 10] for i in range(0, len(findings), 10)]
+        for batch in batches:
+            chunks: list[str] = []
+            for attempt in range(3):  # free-tier rate limits recover in ~a minute
+                try:
+                    async for delta in engine.stream_chat(
+                        [{"role": "user", "content": _triage_prompt(batch)}]
+                    ):
+                        chunks.append(delta)
+                    break
+                except Exception as exc:
+                    log.warning("triage batch attempt %s failed: %s", attempt + 1, exc)
+                    chunks = []
+                    if attempt < 2:
+                        await asyncio.sleep(60)  # let the rate-limit window reset
+            try:
+                verdicts = parse_triage_json("".join(chunks))
+                for v in verdicts:
+                    if not any(f["id"] == v["id"] for f in batch):
+                        continue
+                    await database.execute(
+                        "UPDATE scanner_findings SET ai_verdict = ? WHERE id = ?",
+                        (
+                            json.dumps(
+                                {
+                                    "verdict": v["verdict"],
+                                    "reason": v["reason"],
+                                    "priority": v["priority"],
+                                    "model": model_name,
+                                }
+                            ),
+                            v["id"],
+                        ),
+                    )
+                    tagged += 1
+            except Exception:
+                log.exception("triage verdict write failed")
+            done += len(batch)
+            await broadcast(
+                "ai_triage_progress",
+                {"done": done, "total": len(findings), "tagged": tagged},
+            )
+            if batch is not batches[-1]:
+                await asyncio.sleep(2.5)  # be gentle with free-tier rate limits
+        await broadcast(
+            "ai_triage_done",
+            {"done": done, "total": len(findings), "tagged": tagged},
+        )
+        _triage_task = None
+
+    _triage_task = asyncio.create_task(run(), name="ai-triage")
+    return {"started": True, "count": len(findings), "batches": (len(findings) + 9) // 10}

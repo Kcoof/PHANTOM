@@ -43,4 +43,8 @@ export const scannerService = {
   async control(scanId: string, action: 'pause' | 'resume' | 'stop'): Promise<void> {
     await api.post(`/scanner/scans/${scanId}/${action}`)
   },
+  async triage(limit = 100): Promise<{ started: boolean; count: number; batches: number }> {
+    const { data } = await api.post('/ai/triage', { limit })
+    return data
+  },
 }

@@ -1,7 +1,8 @@
-"""Scanner API — /api/scanner (contracts/api.md + spec 002 report export)."""
+"""Scanner API — /api/scanner (contracts/api.md + specs 002/004)."""
 from __future__ import annotations
 
 import html as html_lib
+import json
 import time
 
 from fastapi import APIRouter, HTTPException
@@ -95,6 +96,18 @@ async def control_scan(scan_id: str, action: str) -> dict:
     return {"scan_id": scan_id, "status": status}
 
 
+def _decode_verdict(row: dict) -> dict:
+    """Decode the ai_verdict JSON column into an object (spec 004)."""
+    if row.get("ai_verdict"):
+        try:
+            row["ai_verdict"] = json.loads(row["ai_verdict"])
+        except (json.JSONDecodeError, TypeError):
+            row["ai_verdict"] = None
+    else:
+        row["ai_verdict"] = None
+    return row
+
+
 @router.get("/findings")
 async def list_findings(
     severity: str | None = None,
@@ -116,9 +129,10 @@ async def list_findings(
         where.append("status = ?")
         params.append(status)
     clause = ("WHERE " + " AND ".join(where)) if where else ""
-    return await database.fetch_all(
+    rows = await database.fetch_all(
         f"SELECT * FROM scanner_findings {clause} ORDER BY id DESC LIMIT 500", tuple(params)
     )
+    return [_decode_verdict(r) for r in rows]
 
 
 @router.get("/findings/{finding_id}")
@@ -126,7 +140,7 @@ async def get_finding(finding_id: int) -> dict:
     row = await database.fetch_one("SELECT * FROM scanner_findings WHERE id = ?", (finding_id,))
     if not row:
         raise HTTPException(status_code=404, detail="finding not found")
-    return row
+    return _decode_verdict(row)
 
 
 class StatusIn(BaseModel):
@@ -266,4 +280,4 @@ async def update_finding_status(finding_id: int, body: StatusIn) -> dict:
         (body.status, 1 if body.status == "false_positive" else 0, finding_id),
     )
     row = await database.fetch_one("SELECT * FROM scanner_findings WHERE id = ?", (finding_id,))
-    return row
+    return _decode_verdict(row)

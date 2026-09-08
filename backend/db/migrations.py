@@ -192,4 +192,11 @@ async def apply(db: aiosqlite.Connection) -> None:
         "INSERT OR IGNORE INTO settings (key, value, category) VALUES (?, ?, ?)",
         SEED_SETTINGS,
     )
+    # column additions for pre-existing databases (spec 004: ai_verdict)
+    for table, column, ddl in (
+        ("scanner_findings", "ai_verdict", "scanner_findings ADD COLUMN ai_verdict TEXT"),
+    ):
+        cols = [row[1] for row in await db.execute_fetchall(f"PRAGMA table_info({table})")]
+        if column not in cols:
+            await db.execute(f"ALTER TABLE {ddl}")
     await db.commit()
