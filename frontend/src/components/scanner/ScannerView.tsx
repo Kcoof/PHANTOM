@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react'
-import { Ban, BrainCircuit, CheckCircle2, FileDown, FileText, Pause, Play, Radar, Square, Wrench } from 'lucide-react'
+import { Ban, BrainCircuit, CheckCircle2, Crosshair, FileDown, FileText, Pause, Play, Radar, Square, Wrench } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useScannerStore } from '../../stores/scannerStore'
 import { SeverityBadge } from '../shared/Badge'
 import { apiError } from '../../services/api'
 import { historyService } from '../../services/proxyService'
 import { scannerService } from '../../services/scannerService'
-import { settingsService } from '../../services/settingsService'
-import { hostMatchesPattern } from '../../utils/scope'
+import { settingsService, type ScopeRule } from '../../services/settingsService'
+import { hostInScope as hostInScopeFn } from '../../utils/scope'
 import type { Finding } from '../../types/scanner'
 
 const SEVERITIES = ['critical', 'high', 'medium', 'low', 'info']
+const SCOPE_LS_KEY = 'phantom.scanner.onlyInScope'
 
 export function ScannerView() {
   const store = useScannerStore()
@@ -19,13 +20,31 @@ export function ScannerView() {
   const [severityFilter, setSeverityFilter] = useState('')
   const [targetHost, setTargetHost] = useState('')
   const [targets, setTargets] = useState<Array<{ host: string; count: number }>>([])
-  const [scopeHosts, setScopeHosts] = useState<string[]>([])
+  const [scopeRules, setScopeRules] = useState<ScopeRule[]>([])
+  const [onlyInScope, setOnlyInScope] = useState(() => {
+    try {
+      return localStorage.getItem(SCOPE_LS_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+
+  const toggleScopeFilter = () => {
+    setOnlyInScope((v) => {
+      try {
+        localStorage.setItem(SCOPE_LS_KEY, v ? '0' : '1')
+      } catch {
+        /* non-fatal */
+      }
+      return !v
+    })
+  }
 
   const loadTargets = async () => {
     try {
       const [t, rules] = await Promise.all([scannerService.targets(), settingsService.scope()])
       setTargets(t)
-      setScopeHosts(rules.filter((r) => r.rule_type === 'include').map((r) => r.host_pattern))
+      setScopeRules(rules)
     } catch {
       /* transient — dropdown just stays empty */
     }
@@ -37,7 +56,18 @@ export function ScannerView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const hostInScope = (host: string) => scopeHosts.some((p) => hostMatchesPattern(host, p))
+  const includeRules = scopeRules.filter(
+    (r) => r.rule_type === 'include' && (r.is_active === 1 || r.is_active === true),
+  )
+  const hostInScope = (host: string) => hostInScopeFn(scopeRules, host)
+
+  const findingHostInScope = (f: Finding) => {
+    try {
+      return hostInScope(new URL(f.url).hostname)
+    } catch {
+      return true // unparsable URL — don't hide it
+    }
+  }
 
   const addHostToScope = async (host: string) => {
     try {
@@ -70,9 +100,11 @@ export function ScannerView() {
     }
   }
 
-  const visibleFindings = severityFilter
-    ? store.findings.filter((f) => f.severity === severityFilter)
-    : store.findings
+  const visibleFindings = store.findings.filter((f) => {
+    if (severityFilter && f.severity !== severityFilter) return false
+    if (onlyInScope && !findingHostInScope(f)) return false
+    return true
+  })
 
   const runningScans = store.scans.filter((s) => s.status === 'running' || s.status === 'paused')
 
@@ -144,13 +176,30 @@ export function ScannerView() {
           <span style={{ fontSize: 10.5, color: 'var(--severity-low)' }}>✓ {targetHost} in scope · authorized targets only</span>
         )}
         <div style={{ flex: 1 }} />
+        <button
+          className={`btn ghost sm ${onlyInScope ? 'primary' : ''}`}
+          onClick={toggleScopeFilter}
+          title={
+            includeRules.length > 0
+              ? `Toggle: show only findings on in-scope hosts (${includeRules.length} include rule${includeRules.length === 1 ? '' : 's'} active)`
+              : 'No include scope rules defined — add one in Settings → Scope for this to filter anything'
+          }
+        >
+          <Crosshair size={12} />
+          Scope: {includeRules.length === 0 ? 'none' : `${includeRules.length} rule${includeRules.length === 1 ? '' : 's'}`}
+          {onlyInScope ? ' · filtering' : ''}
+        </button>
         <select className="input" value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)} style={{ width: 130 }}>
           <option value="">All severities</option>
           {SEVERITIES.map((s) => (
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
-        <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{store.findings.length} findings</span>
+        <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+          {visibleFindings.length === store.findings.length
+            ? `${store.findings.length} findings`
+            : `${visibleFindings.length} of ${store.findings.length} findings`}
+        </span>
         <button
           className="btn sm"
           disabled={!!store.triageProgress}
