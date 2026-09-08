@@ -73,10 +73,10 @@ export function RequestTable() {
         },
       },
       {
-        label: 'Plugins ▸ Parameter Miner',
+        label: 'Plugins ▸ Hpere (hidden params & headers)',
         onClick: async () => {
           const { usePluginStore } = await import('../../stores/pluginStore')
-          await usePluginStore.getState().start('param-miner', { kind: 'request', history_id: id })
+          await usePluginStore.getState().start('hpere', { kind: 'request', history_id: id })
           window.location.hash = '#/plugins'
         },
       },

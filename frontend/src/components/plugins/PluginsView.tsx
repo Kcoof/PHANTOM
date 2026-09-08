@@ -7,7 +7,7 @@ import { statusClass } from '../../utils/formatters'
 
 export function PluginsView() {
   const store = usePluginStore()
-  const [pluginId, setPluginId] = useState('param-miner')
+  const [pluginId, setPluginId] = useState('hpere')
   const [target, setTarget] = useState('')
   const [targets, setTargets] = useState<Array<{ id: number; method: string; url: string; host: string; path: string }>>([])
   const [optionValues, setOptionValues] = useState<Record<string, string | number>>({})
@@ -23,7 +23,7 @@ export function PluginsView() {
   const running = activeRun?.status === 'running'
   const progress = store.progress[activeRun?.id ?? '']
   const rows = store.results[activeRun?.id ?? ''] ?? []
-  const params = rows.filter((r) => r.kind === 'param')
+  const params = rows.filter((r) => r.kind === 'param' || r.kind === 'header')
   const infos = rows.filter((r) => r.kind === 'info' || r.kind === 'summary')
 
   const launch = () => {
@@ -123,19 +123,22 @@ export function PluginsView() {
           <table className="mono" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5 }}>
             <thead style={{ position: 'sticky', top: 0 }}>
               <tr style={{ background: 'var(--bg-tertiary)' }}>
-                {['✓', 'PARAMETER', 'DETECTED VIA', 'EVIDENCE', 'RESPONSE', 'Δ', ''].map((h) => (
+                {['✓', 'TYPE', 'NAME', 'DETECTED VIA', 'EVIDENCE', 'RESPONSE', 'Δ', ''].map((h) => (
                   <th key={h} style={{ textAlign: 'left', padding: '6px 10px', color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, borderBottom: '1px solid var(--border-primary)' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {params.map((r) => {
-                const d = r.data as { name: string; detected_via: string; evidence: string; status: number; delta: number }
+                const d = r.data as { name: string; detected_via: string; via?: string; evidence: string; status: number; delta: number }
+                const via = d.detected_via ?? d.via ?? ''
+                const isHeader = r.kind === 'header'
                 return (
                   <tr key={r.id} className="fade-in" style={{ borderBottom: '1px solid var(--border-primary)' }}>
                     <td style={{ padding: '5px 10px', color: 'var(--severity-low)' }}>✓</td>
+                    <td style={{ padding: '5px 10px', color: isHeader ? 'var(--accent-secondary)' : 'var(--text-secondary)' }}>{r.kind}</td>
                     <td style={{ padding: '5px 10px', color: 'var(--severity-low)', fontWeight: 600 }}>{d.name}</td>
-                    <td style={{ padding: '5px 10px', color: d.detected_via === 'reflection' ? 'var(--severity-info)' : 'var(--severity-medium)' }}>{d.detected_via}</td>
+                    <td style={{ padding: '5px 10px', color: via === 'reflection' ? 'var(--severity-info)' : 'var(--severity-medium)' }}>{via}</td>
                     <td style={{ padding: '5px 10px', color: 'var(--text-secondary)', maxWidth: 380, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.evidence}</td>
                     <td style={{ padding: '5px 10px' }}><span className={statusClass(d.status)}>{d.status}</span></td>
                     <td style={{ padding: '5px 10px', color: d.delta ? 'var(--severity-medium)' : 'var(--text-muted)' }}>{d.delta > 0 ? `+${d.delta}` : d.delta || 0} B</td>
@@ -151,8 +154,8 @@ export function PluginsView() {
           </table>
         ) : (
           <div style={{ padding: 28, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, lineHeight: 1.7 }}>
-            No parameter discoveries yet.<br />
-            <span style={{ fontSize: 11 }}>Right-click a request in Proxy → Plugins ▸ Parameter Miner, or pick a target above and press Run.</span>
+            No discoveries yet.<br />
+            <span style={{ fontSize: 11 }}>Right-click a request in Proxy → Plugins ▸ Hpere, or pick a target above and press Run.</span>
           </div>
         )}
         {activeRun?.status === 'failed' && activeRun.error && (

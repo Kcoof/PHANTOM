@@ -165,4 +165,4 @@ def get_plugin_engine() -> PluginEngine:
 
 
 # register built-ins (import side effects)
-from core.plugins import param_miner  # noqa: E402,F401
+from core.plugins import hpere  # noqa: E402,F401

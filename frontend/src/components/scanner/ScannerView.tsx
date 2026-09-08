@@ -450,11 +450,11 @@ function FindingDetail({ finding }: { finding: Finding }) {
               className="btn sm"
               onClick={async () => {
                 const { usePluginStore } = await import('../../stores/pluginStore')
-                void usePluginStore.getState().start('param-miner', { kind: 'request', history_id: finding.history_id })
+                void usePluginStore.getState().start('hpere', { kind: 'request', history_id: finding.history_id })
                 window.location.hash = '#/plugins'
               }}
             >
-              ⛏ Run Parameter Miner
+              ⛏ Run Hpere
             </button>
           )}
         </div>

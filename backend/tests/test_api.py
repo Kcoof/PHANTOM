@@ -437,39 +437,65 @@ def test_in_scope_only_scan_focuses_targets(client):
     assert all("inscope.test" in f["url"] for f in findings), "no out-of-scope findings allowed"
 
 
-# --- spec 005: plugin system / parameter miner -----------------------------------
+# --- spec 005: plugin system / Hpere miner ----------------------------------------
 
 def test_plugin_registry(client):
     plugins = client.get("/api/plugins").json()
-    assert any(p["id"] == "param-miner" for p in plugins)
-    pm = next(p for p in plugins if p["id"] == "param-miner")
+    assert any(p["id"] == "hpere" for p in plugins)
+    pm = next(p for p in plugins if p["id"] == "hpere")
     assert "request" in pm["accepts"] and pm["parameters"]
 
 
-def test_param_miner_finds_planted_hidden_params(client):
+def test_hpere_finds_planted_params_json_and_headers(client):
     import threading
     from http.server import BaseHTTPRequestHandler, HTTPServer
     from urllib.parse import parse_qs, urlsplit
 
-    # planted: debug (reflected), admin (behavior: different body), format (reflected)
-    HIDDEN = {"debug": "reflect", "admin": "behavior", "format": "reflect"}
+    HIDDEN_PARAMS = {"debug": "reflect", "admin": "behavior", "format": "reflect"}
+    HIDDEN_JSON = {"token"}          # only reacts to JSON body injection
+    HIDDEN_HEADERS = {"X-Original-URL"}
 
     class Handler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            q = {k: v[0] for k, v in parse_qs(urlsplit(self.path).query).items()}
-            if "debug" in q:
-                body = f'{{"debug":"{q["debug"]}","ok":true}}'.encode()
-            elif "format" in q:
-                body = f'output-format={q["format"]} rendering'.encode()
-            elif "admin" in q:
-                body = b"ADMIN PANEL ENABLED " + b"x" * 200
-            else:
-                body = b'{"ok":true}'
+        def _serve(self, body):
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+
+        def do_GET(self):
+            q = {k: v[0] for k, v in parse_qs(urlsplit(self.path).query).items()}
+            if "debug" in q:
+                self._serve(f'{{"debug":"{q["debug"]}","ok":true}}'.encode())
+            elif "format" in q:
+                self._serve(f'output-format={q["format"]}'.encode())
+            elif "admin" in q:
+                self._serve(b"ADMIN PANEL ENABLED " + b"x" * 200)
+            else:
+                self._serve(b'{"ok":true}')
+
+        def do_POST(self):
+            q = {k: v[0] for k, v in parse_qs(urlsplit(self.path).query).items()}
+            length = int(self.headers.get("Content-Length", 0))
+            raw = self.rfile.read(length).decode("utf-8", errors="replace") if length else ""
+            try:
+                import json as _j
+
+                body = _j.loads(raw) if raw.strip().startswith("{") else {}
+            except Exception:
+                body = {}
+            if self.headers.get("X-Original-URL"):
+                self._serve(b'{"routed_to": "internal-admin"}')
+            elif body.get("token"):
+                self._serve(f'{{"token":"{body["token"]}"}}'.encode())
+            elif "format" in q:
+                self._serve(f'output-format={q["format"]}'.encode())
+            elif "admin" in q:
+                self._serve(b"ADMIN PANEL ENABLED " + b"x" * 200)
+            elif "debug" in q:
+                self._serve(f'{{"debug":"{q["debug"]}","ok":true}}'.encode())
+            else:
+                self._serve(b'{"ok":true}')
 
         def log_message(self, *args):
             pass
@@ -478,15 +504,21 @@ def test_param_miner_finds_planted_hidden_params(client):
     port = server.server_address[1]
     threading.Thread(target=server.serve_forever, daemon=True).start()
 
-    # in-scope rule so the miner may probe, and a history entry to mine
     import sqlite3
 
     client.post("/api/settings/scope", json={"rule_type": "include", "host_pattern": "127.0.0.1"})
     db = sqlite3.connect(config.DB_PATH)
+    # a JSON POST entry: token reacts via JSON body; debug via query; X-Original-URL via header
     cur = db.execute(
-        """INSERT INTO proxy_history (method, scheme, host, port, path, url, request_headers, status_code, response_headers, response_body)
-           VALUES ('GET', 'http', '127.0.0.1', ?, '/x', ?, '{}', 200, '{}', '{"ok":true}')""",
-        (port, f"http://127.0.0.1:{port}/x"),
+        """INSERT INTO proxy_history (method, scheme, host, port, path, url, request_headers,
+               request_body, request_content_type, status_code, response_headers, response_body)
+           VALUES ('POST', 'http', '127.0.0.1', ?, '/api/login', ?, '{}',
+                   ?, 'application/json', 200, '{}', '{"ok":true}')""",
+        (
+            port,
+            f"http://127.0.0.1:{port}/api/login?debug=1",
+            '{"username":"a","password":"b"}',
+        ),
     )
     db.commit()
     entry_id = cur.lastrowid
@@ -494,34 +526,37 @@ def test_param_miner_finds_planted_hidden_params(client):
 
     try:
         r = client.post(
-            "/api/plugins/param-miner/run",
+            "/api/plugins/hpere/run",
             json={"context": {"kind": "request", "history_id": entry_id},
-                  "options": {"wordlist": "shallow-60", "batch_size": 20}},
+                  "options": {"wordlist": "fast-60", "mine": "params+headers", "batch_size": 20}},
         )
         assert r.status_code == 201, r.text
         run_id = r.json()["run_id"]
-        for _ in range(120):
+        for _ in range(200):
             time.sleep(0.25)
             run = client.get(f"/api/plugins/runs/{run_id}").json()
             if run["status"] in ("completed", "failed", "stopped"):
                 break
         assert run["status"] == "completed", run.get("error")
         results = client.get(f"/api/plugins/runs/{run_id}/results").json()
-        found = {r["data"]["name"] for r in results if r["kind"] == "param"}
-        assert found == set(HIDDEN), f"expected exactly the planted params, got {found}"
-        # findings were created too
-        f = client.get("/api/scanner/findings").json()
-        hidden = {x["parameter"] for x in f if x["finding_type"] == "hidden_param"}
-        assert set(HIDDEN) <= hidden
+        found_params = {r["data"]["name"] for r in results if r["kind"] == "param"}
+        found_headers = {r["data"]["name"] for r in results if r["kind"] == "header"}
+        assert found_params == set(HIDDEN_PARAMS) | HIDDEN_JSON, f"params: {found_params}"
+        assert found_headers == HIDDEN_HEADERS, f"headers: {found_headers}"
+        findings = client.get("/api/scanner/findings").json()
+        hp = {x["parameter"] for x in findings if x["finding_type"] == "hidden_param"}
+        hh = {x["parameter"] for x in findings if x["finding_type"] == "hidden_header"}
+        assert (set(HIDDEN_PARAMS) | HIDDEN_JSON) <= hp
+        assert HIDDEN_HEADERS <= hh
     finally:
         server.shutdown()
 
 
-def test_param_miner_out_of_scope_rejected(client):
+def test_hpere_out_of_scope_rejected(client):
     _seed_body("<html>x</html>", "https://notinscope.test/p", "/p")
     client.post("/api/settings/scope", json={"rule_type": "include", "host_pattern": "inscope.test"})
     r = client.post(
-        "/api/plugins/param-miner/run",
+        "/api/plugins/hpere/run",
         json={"context": {"kind": "request", "history_id": client.get("/api/history?search=notinscope").json()["items"][0]["id"]}},
     )
     assert r.status_code == 201
