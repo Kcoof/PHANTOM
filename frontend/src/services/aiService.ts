@@ -68,6 +68,9 @@ export const aiService = {
     const { data } = await api.get<ChatMessage[]>('/ai/conversations')
     return data
   },
+  async clearConversations(): Promise<void> {
+    await api.delete('/ai/conversations')
+  },
   streamChat(body: { message: string; context_type?: string; context_id?: number }, cb: SseCallbacks): Promise<void> {
     return consumeSse('/api/ai/chat', body, cb)
   },

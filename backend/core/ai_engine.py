@@ -151,8 +151,15 @@ class AIEngine:
                 "POST", f"{s['base_url']}/chat/completions", json=payload, headers=headers
             ) as resp:
                 if resp.status_code != 200:
-                    body = (await resp.aread()).decode("utf-8", errors="replace")[:300]
-                    raise RuntimeError(f"AI provider error {resp.status_code}: {body}")
+                    raw = (await resp.aread()).decode("utf-8", errors="replace")
+                    try:
+                        msg = json.loads(raw)["error"]["message"][:220]
+                    except (json.JSONDecodeError, KeyError, TypeError):
+                        msg = raw[:220]
+                    hint = ""
+                    if resp.status_code in (413, 429):
+                        hint = " — free-tier rate/size limit; retry in a minute or switch to a lighter model (Settings → AI)"
+                    raise RuntimeError(f"AI provider error {resp.status_code}: {msg}{hint}")
                 async for line in resp.aiter_lines():
                     line = line.strip()
                     if not line or not line.startswith("data:"):

@@ -11,9 +11,11 @@ interface CopilotStore {
 
   refreshStatus: () => Promise<void>
   loadHistory: () => Promise<void>
+  clearHistory: () => Promise<void>
   setContext: (ctx: { type: 'request' | 'finding' | null; id: number | null; label: string }) => void
   send: (text: string) => Promise<void>
   analyzeRequest: (historyId: number, label: string) => Promise<void>
+  analyzeFinding: (findingId: number, label: string) => Promise<void>
   suggestPayloads: (url: string, parameter: string, vulnType: string) => Promise<void>
 }
 
@@ -37,6 +39,16 @@ export const useCopilotStore = create<CopilotStore>((set, get) => ({
       set({ messages: rows.reverse().slice(-100) })
     } catch {
       /* transient */
+    }
+  },
+
+  clearHistory: async () => {
+    try {
+      await aiService.clearConversations()
+      set({ messages: [] })
+      toast.success('Conversation cleared')
+    } catch {
+      toast.error('Failed to clear conversation')
     }
   },
 
@@ -91,6 +103,33 @@ export const useCopilotStore = create<CopilotStore>((set, get) => ({
       onError: (msg) => toast.error(msg),
       onDone: () => set({ streaming: false }),
     })
+    set({ streaming: false })
+  },
+
+  analyzeFinding: async (findingId, label) => {
+    if (get().streaming) return
+    set((s) => ({
+      messages: [...s.messages, { role: 'user', content: `🛡️ Analyze finding: ${label}` }],
+      streaming: true,
+      context: { type: 'finding', id: findingId, label },
+    }))
+    set((s) => ({ messages: [...s.messages, { role: 'assistant', content: '' }] }))
+    let acc = ''
+    await aiService.streamChat(
+      { message: 'Analyze this finding: is it exploitable, how would you verify it, and what is a good PoC? Include a concrete payload or curl if applicable.', context_type: 'finding', context_id: findingId },
+      {
+        onDelta: (d) => {
+          acc += d
+          set((s) => {
+            const messages = [...s.messages]
+            messages[messages.length - 1] = { role: 'assistant', content: acc }
+            return { messages }
+          })
+        },
+        onError: (msg) => toast.error(msg),
+        onDone: () => set({ streaming: false }),
+      },
+    )
     set({ streaming: false })
   },
 

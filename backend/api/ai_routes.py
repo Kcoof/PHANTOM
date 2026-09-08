@@ -88,7 +88,17 @@ async def chat(body: ChatIn):
     history = await database.fetch_all(
         "SELECT role, content FROM ai_conversations ORDER BY id DESC LIMIT 10"
     )
-    messages = [{"role": m["role"], "content": m["content"]} for m in reversed(history)]
+    # Trim history to a character budget so the request fits small free-tier
+    # TPM limits (gpt-oss-120b: 8k tokens ≈ 32k chars) even after the user has
+    # accumulated several long analyses. Newest messages win.
+    messages: list[dict] = []
+    budget = 10_000 if context_text else 16_000
+    for m in reversed(history):
+        content = (m["content"] or "")[:2_500]
+        if budget - len(content) < 0:
+            break
+        budget -= len(content)
+        messages.append({"role": m["role"], "content": content})
     messages.append({"role": "user", "content": (context_text + "\n\n" if context_text else "") + body.message})
 
     await database.execute(
@@ -155,6 +165,12 @@ async def conversations() -> list[dict]:
     return await database.fetch_all(
         "SELECT * FROM ai_conversations ORDER BY id DESC LIMIT 200"
     )
+
+
+@router.delete("/conversations")
+async def clear_conversations() -> dict:
+    await database.execute("DELETE FROM ai_conversations")
+    return {"cleared": True}
 
 
 @router.get("/status")

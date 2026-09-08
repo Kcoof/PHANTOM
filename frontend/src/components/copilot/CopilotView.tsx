@@ -51,6 +51,9 @@ export function CopilotView() {
             {available ? `ONLINE · ${store.status?.model}` : 'OFFLINE'}
           </Badge>
           <div style={{ flex: 1 }} />
+          <button className="btn ghost sm" title="Clear conversation history" onClick={() => void store.clearHistory()}>
+            New chat
+          </button>
           <span className="mono" style={{ fontSize: 10, color: 'var(--text-muted)' }}>{store.status?.base_url}</span>
         </div>
 

@@ -431,6 +431,20 @@ function FindingDetail({ finding }: { finding: Finding }) {
           </div>
         </section>
       )}
+
+      <section>
+        <SectionTitle>AI</SectionTitle>
+        <button
+          className="btn sm primary"
+          onClick={async () => {
+            const { useCopilotStore } = await import('../../stores/copilotStore')
+            void useCopilotStore.getState().analyzeFinding(finding.id, finding.title)
+            window.location.hash = '#/copilot'
+          }}
+        >
+          <BrainCircuit size={11} /> Analyze with AI Copilot
+        </button>
+      </section>
     </div>
   )
 }
