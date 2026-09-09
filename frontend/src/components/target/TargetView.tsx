@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight, Crosshair, Globe, ListTree, Search as SearchIcon } from 'lucide-react'
+import { ChevronDown, ChevronRight, Crosshair, ExternalLink, Globe, ListTree, Search as SearchIcon, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { api } from '../../services/api'
 import { apiError } from '../../services/api'
 import { settingsService, type ScopeRule } from '../../services/settingsService'
 import { useProxyStore } from '../../stores/proxyStore'
+import { RequestDetail } from '../proxy/RequestDetail'
 import { hostInScope } from '../../utils/scope'
 import { formatMs, methodClass, statusClass } from '../../utils/formatters'
 
@@ -127,6 +128,11 @@ export function TargetView() {
     window.location.hash = '#/proxy'
   }
 
+  const selectedDetail = useProxyStore((s) => s.selectedDetail)
+  const detailLoading = useProxyStore((s) => s.detailLoading)
+  const selectRequest = useProxyStore((s) => s.selectRequest)
+  const showDetail = Boolean(selectedDetail) || detailLoading
+
   const includeRules = scopeRules.filter((r) => r.rule_type === 'include')
 
   return (
@@ -176,49 +182,85 @@ export function TargetView() {
           )}
         </div>
 
-        <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
-          {selected ? (
-            <div>
-              <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-primary)', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Globe size={13} color="var(--accent-secondary)" />
-                <span className="mono" style={{ fontSize: 12 }}>
-                  {selected.host}
-                  <span style={{ color: 'var(--text-secondary)' }}>{selected.path || '/'}</span>
-                </span>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{selected.count} request(s) captured</span>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: showDetail ? '0 0 auto' : '1', maxHeight: showDetail ? '42%' : undefined, overflow: 'auto', minHeight: 0 }}>
+            {selected ? (
+              <div>
+                <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-primary)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Globe size={13} color="var(--accent-secondary)" />
+                  <span className="mono" style={{ fontSize: 12 }}>
+                    {selected.host}
+                    <span style={{ color: 'var(--text-secondary)' }}>{selected.path || '/'}</span>
+                  </span>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{selected.count} request(s) captured</span>
+                </div>
+                {loadingEntries ? (
+                  <div style={{ padding: 20, color: 'var(--text-muted)', fontSize: 12 }}>Loading…</div>
+                ) : (
+                  entries.map((e) => {
+                    const isActive = selectedDetail?.id === e.id
+                    return (
+                      <div
+                        key={e.id}
+                        className="fade-in"
+                        onClick={() => void selectRequest(e.id)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 10, padding: '7px 14px',
+                          borderBottom: '1px solid var(--border-primary)', cursor: 'pointer',
+                          background: isActive ? 'var(--bg-active)' : 'transparent',
+                        }}
+                      >
+                        <span className={methodClass(e.method)} style={{ fontWeight: 700, fontSize: 11, width: 46 }}>{e.method}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 60 }}>#{e.id}</span>
+                        <span className={statusClass(e.status_code)} style={{ fontWeight: 600, fontSize: 11, width: 34 }}>{e.status_code ?? '—'}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{formatMs(e.response_time_ms)}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{e.timestamp?.slice(5, 19)}</span>
+                        <span style={{ flex: 1 }} />
+                        <span style={{ fontSize: 10.5, color: 'var(--accent-primary)' }}>{isActive ? '▼ shown below' : 'view'}</span>
+                      </div>
+                    )
+                  })
+                )}
+                {!loadingEntries && entries.length === 0 && (
+                  <div style={{ padding: 20, color: 'var(--text-muted)', fontSize: 12 }}>No entries.</div>
+                )}
               </div>
-              {loadingEntries ? (
-                <div style={{ padding: 20, color: 'var(--text-muted)', fontSize: 12 }}>Loading…</div>
-              ) : (
-                entries.map((e) => (
-                  <div
-                    key={e.id}
-                    className="fade-in"
-                    onClick={() => void openInProxy(e.id)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 10, padding: '7px 14px',
-                      borderBottom: '1px solid var(--border-primary)', cursor: 'pointer',
-                    }}
-                  >
-                    <span className={methodClass(e.method)} style={{ fontWeight: 700, fontSize: 11, width: 46 }}>{e.method}</span>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 60 }}>#{e.id}</span>
-                    <span className={statusClass(e.status_code)} style={{ fontWeight: 600, fontSize: 11, width: 34 }}>{e.status_code ?? '—'}</span>
-                    <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{formatMs(e.response_time_ms)}</span>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{e.timestamp?.slice(5, 19)}</span>
-                    <span style={{ flex: 1 }} />
-                    <span style={{ fontSize: 10.5, color: 'var(--accent-primary)' }}>open in Proxy →</span>
-                  </div>
-                ))
-              )}
-              {!loadingEntries && entries.length === 0 && (
-                <div style={{ padding: 20, color: 'var(--text-muted)', fontSize: 12 }}>No entries.</div>
-              )}
-            </div>
-          ) : (
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--text-muted)', fontSize: 12 }}>
-              <ListTree size={26} style={{ opacity: 0.5 }} />
-              Select a page in the tree to see its captured requests.
-              <span style={{ fontSize: 11 }}>Click an entry to open it full-size in the Proxy view.</span>
+            ) : (
+              <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--text-muted)', fontSize: 12, padding: 20, textAlign: 'center' }}>
+                <ListTree size={26} style={{ opacity: 0.5 }} />
+                Select a page in the tree to see its captured requests.
+                <span style={{ fontSize: 11 }}>Click an entry to inspect it below — no page switch needed.</span>
+              </div>
+            )}
+          </div>
+
+          {showDetail && (
+            <div style={{ flex: 1, minHeight: 0, borderTop: '1px solid var(--border-active)', display: 'flex', flexDirection: 'column', background: 'var(--bg-secondary)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 12px', borderBottom: '1px solid var(--border-primary)' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text-secondary)' }}>
+                  REQUEST {selectedDetail ? `#${selectedDetail.id}` : ''}
+                </span>
+                {selectedDetail && (
+                  <span className="mono" style={{ fontSize: 10.5, color: 'var(--text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {selectedDetail.method} {selectedDetail.url}
+                  </span>
+                )}
+                <button
+                  className="btn ghost sm"
+                  title="Open this request full-size in the Proxy view"
+                  onClick={() => {
+                    if (selectedDetail) void openInProxy(selectedDetail.id)
+                  }}
+                >
+                  <ExternalLink size={11} /> Proxy
+                </button>
+                <button className="btn ghost sm" title="Close detail" onClick={() => void selectRequest(null)}>
+                  <X size={11} />
+                </button>
+              </div>
+              <div style={{ flex: 1, minHeight: 0 }}>
+                <RequestDetail />
+              </div>
             </div>
           )}
         </div>
