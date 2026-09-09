@@ -123,7 +123,7 @@ export function RepeaterView() {
             }
             right={
               <div style={{ height: '100%', borderLeft: '1px solid var(--border-primary)' }}>
-                <ResponseViewer result={lastResult[active.id] ?? null} />
+                <ResponseViewer result={lastResult[active.id] ?? null} baseUrl={active.url} />
               </div>
             }
           />
