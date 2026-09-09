@@ -109,6 +109,22 @@ export function RequestTable() {
         },
       },
       {
+        label: '🌐 Render response in browser',
+        onClick: async () => {
+          try {
+            const d = await historyService.detail(id)
+            if (!d.response_body) {
+              toast('This entry has no stored response body', { icon: 'ℹ️' })
+              return
+            }
+            const { renderResponseInBrowser } = await import('../../utils/render')
+            renderResponseInBrowser(d.response_body, d.url, d.response_content_type)
+          } catch (err) {
+            toast.error(apiError(err))
+          }
+        },
+      },
+      {
         label: 'Delete entry',
         danger: true,
         separatorBefore: true,

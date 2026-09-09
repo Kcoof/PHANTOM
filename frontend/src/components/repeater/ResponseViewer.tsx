@@ -3,39 +3,11 @@ import { CaseSensitive, ChevronDown, ChevronUp, Copy, Globe, Search, X } from 'l
 import toast from 'react-hot-toast'
 import type { SendResult } from '../../types/repeater'
 import { copyToClipboard, statusClass } from '../../utils/formatters'
+import { renderResponseInBrowser } from '../../utils/render'
 
 type Tab = 'raw' | 'headers' | 'body' | 'hex'
 
 const MAX_HIGHLIGHT_MATCHES = 5000
-
-/** Render the response as a real page in a new browser tab (blob URL, opaque
- *  origin so captured scripts can't touch PHANTOM's API). */
-function renderInBrowser(result: SendResult, baseUrl: string) {
-  const ct = (result.headers?.['content-type'] ?? result.headers?.['Content-Type'] ?? '').toLowerCase()
-  const isHtml = ct.includes('html') || /^\s*<(?:!doctype|html)/i.test(result.body)
-  let blob: Blob
-  if (isHtml) {
-    let html = result.body
-    const baseTag = `<base href="${baseUrl}">`
-    if (/<head[^>]*>/i.test(html)) html = html.replace(/<head([^>]*)>/i, `<head$1>${baseTag}`)
-    else if (/<html[^>]*>/i.test(html)) html = html.replace(/<html([^>]*)>/i, `<html$1><head>${baseTag}</head>`)
-    else html = `${baseTag}<html><body>${html}</body></html>`
-    blob = new Blob([html], { type: 'text/html' })
-  } else {
-    blob = new Blob([result.body], { type: 'text/plain' })
-  }
-  const url = URL.createObjectURL(blob)
-  const win = window.open(url, '_blank')
-  if (!win) {
-    // popup blocked — try a synthetic link click
-    const a = document.createElement('a')
-    a.href = url
-    a.target = '_blank'
-    a.rel = 'noopener'
-    a.click()
-  }
-  window.setTimeout(() => URL.revokeObjectURL(url), 120_000)
-}
 
 export function ResponseViewer({ result, baseUrl = '' }: { result: SendResult | null; baseUrl?: string }) {
   const [tab, setTab] = useState<Tab>('raw')
@@ -112,7 +84,7 @@ export function ResponseViewer({ result, baseUrl = '' }: { result: SendResult | 
         <button
           className="btn ghost sm"
           title="Render this response as a page in a new browser tab (styles/assets load from the original site)"
-          onClick={() => renderInBrowser(result, baseUrl)}
+          onClick={() => renderResponseInBrowser(result.body, baseUrl, result.headers?.['content-type'] ?? result.headers?.['Content-Type'])}
         >
           <Globe size={11} />
         </button>
