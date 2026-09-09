@@ -420,6 +420,20 @@ def test_ai_verdict_column_migrated():
     assert "ai_verdict" in cols
 
 
+# --- spec 006: target site map ----------------------------------------------------
+
+def test_target_tree_and_entries(client):
+    _seed_body("<html>1</html>", "https://tree.test/a/b/c", "/a/b/c")
+    _seed_body("<html>2</html>", "https://tree.test/a/other", "/a/other")
+    tree = client.get("/api/target/tree", params={"search": "tree.test"}).json()
+    paths = {r["path"] for r in tree}
+    assert paths == {"/a/b/c", "/a/other"}
+    row = next(r for r in tree if r["path"] == "/a/b/c")
+    assert row["count"] >= 1 and row["host"] == "tree.test"
+    entries = client.get("/api/target/entries", params={"host": "tree.test", "path": "/a/other"}).json()
+    assert entries and all(e["url"].endswith("/a/other") for e in entries)
+
+
 def test_in_scope_only_scan_focuses_targets(client):
     _seed_body("<html>a</html>", "https://inscope.test/x", "/x")
     _seed_body("<html>b</html>", "https://outsidetest.test/y", "/y")

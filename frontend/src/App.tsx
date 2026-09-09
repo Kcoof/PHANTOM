@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast'
 import { loader } from '@monaco-editor/react'
 import { MainLayout } from './components/layout/MainLayout'
 import { ProxyView } from './components/proxy/ProxyView'
+import { TargetView } from './components/target/TargetView'
 import { RepeaterView } from './components/repeater/RepeaterView'
 import { IntruderView } from './components/intruder/IntruderView'
 import { SearchView } from './components/search/SearchView'
@@ -31,6 +32,7 @@ function AppShell() {
       <Routes>
         <Route path="/" element={<DashboardView />} />
         <Route path="/proxy" element={<ProxyView />} />
+        <Route path="/target" element={<TargetView />} />
         <Route path="/repeater" element={<RepeaterView />} />
         <Route path="/intruder" element={<IntruderView />} />
         <Route path="/search" element={<SearchView />} />

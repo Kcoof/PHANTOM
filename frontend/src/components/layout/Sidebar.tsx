@@ -4,6 +4,7 @@ import {
   Blocks,
   BrainCircuit,
   Crosshair,
+  ListTree,
   Lock,
   Radar,
   Repeat2,
@@ -16,6 +17,7 @@ import { useProxyStore } from '../../stores/proxyStore'
 const ITEMS = [
   { to: '/', label: 'Dashboard', icon: Activity },
   { to: '/proxy', label: 'Proxy', icon: Shield },
+  { to: '/target', label: 'Target', icon: ListTree },
   { to: '/repeater', label: 'Repeater', icon: Repeat2 },
   { to: '/intruder', label: 'Intruder', icon: Crosshair },
   { to: '/scanner', label: 'Scanner', icon: Radar },

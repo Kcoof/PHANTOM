@@ -21,6 +21,7 @@ from api import (
     scanner_routes,
     search_routes,
     settings_routes,
+    target_routes,
     websocket,
 )
 from core.proxy_engine import get_proxy_engine
@@ -69,6 +70,7 @@ app.include_router(intruder_routes.router, prefix="/api/intruder", tags=["Intrud
 app.include_router(search_routes.router, prefix="/api/search", tags=["Search"])
 app.include_router(match_replace_routes.router, prefix="/api/match-replace", tags=["Match & Replace"])
 app.include_router(plugin_routes.router, prefix="/api/plugins", tags=["Plugins"])
+app.include_router(target_routes.router, prefix="/api/target", tags=["Target"])
 app.include_router(websocket.router, tags=["WebSocket"])
 
 
