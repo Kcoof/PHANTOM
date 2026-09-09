@@ -75,10 +75,10 @@ export function DashboardView() {
 
       {/* stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-        <StatCard icon={<Globe size={15} />} label="Total requests" value={stats?.total_requests ?? 0} />
-        <StatCard icon={<AlertTriangle size={15} color="var(--severity-high)" />} label="Findings" value={stats?.total_findings ?? 0} />
-        <StatCard icon={<Clock size={15} color="var(--accent-secondary)" />} label="Avg response" value={`${stats?.avg_response_time_ms ?? 0} ms`} />
-        <StatCard icon={<Layers size={15} color="var(--severity-info)" />} label="Technologies" value={tech.length} />
+        <StatCard icon={<Globe size={15} />} label="Total requests" value={stats?.total_requests ?? 0} to="/proxy" />
+        <StatCard icon={<AlertTriangle size={15} color="var(--severity-high)" />} label="Findings" value={stats?.total_findings ?? 0} to="/scanner" />
+        <StatCard icon={<Clock size={15} color="var(--accent-secondary)" />} label="Avg response" value={`${stats?.avg_response_time_ms ?? 0} ms`} to="/target" />
+        <StatCard icon={<Layers size={15} color="var(--severity-info)" />} label="Technologies" value={tech.length} to="/target" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
@@ -181,11 +181,27 @@ export function DashboardView() {
   )
 }
 
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
-  return (
-    <div className="panel fade-in" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
+function StatCard({ icon, label, value, to }: { icon: React.ReactNode; label: string; value: string | number; to?: string }) {
+  const inner = (
+    <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', fontSize: 11 }}>{icon} {label}</div>
       <div style={{ fontSize: 24, fontWeight: 700 }}>{typeof value === 'number' ? value.toLocaleString() : value}</div>
-    </div>
+    </>
+  )
+  if (to) {
+    return (
+      <a
+        href={`#${to}`}
+        className="panel fade-in"
+        style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 6, textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
+        onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--border-active)')}
+        onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-primary)')}
+      >
+        {inner}
+      </a>
+    )
+  }
+  return (
+    <div className="panel fade-in" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>{inner}</div>
   )
 }

@@ -23,7 +23,7 @@ export function PluginsView() {
   const running = activeRun?.status === 'running'
   const progress = store.progress[activeRun?.id ?? '']
   const rows = store.results[activeRun?.id ?? ''] ?? []
-  const params = rows.filter((r) => r.kind === 'param' || r.kind === 'header')
+  const params = rows.filter((r) => r.kind !== 'info' && r.kind !== 'summary' && r.kind !== 'progress')
   const infos = rows.filter((r) => r.kind === 'info' || r.kind === 'summary')
 
   const launch = () => {
@@ -130,18 +130,23 @@ export function PluginsView() {
             </thead>
             <tbody>
               {params.map((r) => {
-                const d = r.data as { name: string; detected_via: string; via?: string; evidence: string; status: number; delta: number }
-                const via = d.detected_via ?? d.via ?? ''
+                const d = r.data as Record<string, unknown>
+                const name = String(d.name ?? d.label ?? d.method ?? d.path ?? d.title ?? r.kind)
+                const via = String(d.detected_via ?? d.via ?? d.severity ?? '')
+                const evidence = String(d.evidence ?? d.message ?? '')
+                const status = typeof d.status === 'number' ? d.status : null
+                const delta = typeof d.delta === 'number' ? d.delta : null
                 const isHeader = r.kind === 'header'
+                const isHi = String(d.severity ?? '') === 'high' || via === 'reflection'
                 return (
                   <tr key={r.id} className="fade-in" style={{ borderBottom: '1px solid var(--border-primary)' }}>
                     <td style={{ padding: '5px 10px', color: 'var(--severity-low)' }}>✓</td>
                     <td style={{ padding: '5px 10px', color: isHeader ? 'var(--accent-secondary)' : 'var(--text-secondary)' }}>{r.kind}</td>
-                    <td style={{ padding: '5px 10px', color: 'var(--severity-low)', fontWeight: 600 }}>{d.name}</td>
-                    <td style={{ padding: '5px 10px', color: via === 'reflection' ? 'var(--severity-info)' : 'var(--severity-medium)' }}>{via}</td>
-                    <td style={{ padding: '5px 10px', color: 'var(--text-secondary)', maxWidth: 380, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.evidence}</td>
-                    <td style={{ padding: '5px 10px' }}><span className={statusClass(d.status)}>{d.status}</span></td>
-                    <td style={{ padding: '5px 10px', color: d.delta ? 'var(--severity-medium)' : 'var(--text-muted)' }}>{d.delta > 0 ? `+${d.delta}` : d.delta || 0} B</td>
+                    <td style={{ padding: '5px 10px', color: isHi ? 'var(--severity-high)' : 'var(--severity-low)', fontWeight: 600 }}>{name}</td>
+                    <td style={{ padding: '5px 10px', color: isHi ? 'var(--severity-medium)' : 'var(--text-secondary)' }}>{via}</td>
+                    <td style={{ padding: '5px 10px', color: 'var(--text-secondary)', maxWidth: 380, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{evidence}</td>
+                    <td style={{ padding: '5px 10px' }}>{status != null ? <span className={statusClass(status)}>{status}</span> : '—'}</td>
+                    <td style={{ padding: '5px 10px', color: delta ? 'var(--severity-medium)' : 'var(--text-muted)' }}>{delta != null ? `${delta > 0 ? '+' : ''}${delta} B` : '—'}</td>
                     <td style={{ padding: '3px 8px' }}>
                       <button className="btn ghost sm" title="Open the source request in Repeater to probe" onClick={() => void toRepeater(r)}>
                         <ArrowRight size={11} /> Repeater

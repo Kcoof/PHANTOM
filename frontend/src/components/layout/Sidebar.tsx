@@ -2,10 +2,10 @@ import { NavLink } from 'react-router-dom'
 import {
   Activity,
   Blocks,
-  BrainCircuit,
   Crosshair,
   ListTree,
   Lock,
+  MessagesSquare,
   Radar,
   Repeat2,
   Search,
@@ -24,7 +24,7 @@ const ITEMS = [
   { to: '/plugins', label: 'Plugins', icon: Blocks },
   { to: '/search', label: 'Search', icon: Search },
   { to: '/decoder', label: 'Decoder', icon: Lock },
-  { to: '/copilot', label: 'AI Copilot', icon: BrainCircuit },
+  { to: '/copilot', label: 'Assistant', icon: MessagesSquare },
 ]
 
 export function Sidebar() {
@@ -58,7 +58,7 @@ export function Sidebar() {
             justifyContent: 'center',
             borderRadius: 'var(--radius-md)',
             color: isActive ? '#fff' : 'var(--text-secondary)',
-            background: isActive ? 'var(--accent-primary)' : 'transparent',
+            background: isActive ? 'var(--accent-grad)' : 'transparent',
             boxShadow: isActive ? '0 0 12px var(--accent-glow)' : 'none',
             transition: 'all var(--transition-fast)',
           })}

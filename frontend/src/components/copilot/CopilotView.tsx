@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bot, BrainCircuit, Send, User, Zap } from 'lucide-react'
+import { MessagesSquare, Send, User, Zap } from 'lucide-react'
 import Markdown from 'react-markdown'
 import { useCopilotStore } from '../../stores/copilotStore'
 import { Badge } from '../shared/Badge'
@@ -42,8 +42,8 @@ export function CopilotView() {
             borderBottom: '1px solid var(--border-primary)',
           }}
         >
-          <BrainCircuit size={15} color="var(--accent-primary)" />
-          <span style={{ fontWeight: 700, letterSpacing: 0.5 }}>PHANTOM AI Copilot</span>
+          <MessagesSquare size={15} color="var(--accent-primary)" />
+          <span style={{ fontWeight: 700, letterSpacing: 0.5 }}>PHANTOM Assistant</span>
           <Badge
             color={available ? 'var(--severity-low)' : 'var(--severity-medium)'}
             bg={available ? 'rgba(0,184,148,0.1)' : 'rgba(255,193,7,0.1)'}
@@ -71,7 +71,7 @@ export function CopilotView() {
         <div ref={scrollRef} style={{ flex: 1, overflow: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
           {store.messages.length === 0 && (
             <div style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'center', marginTop: 40, lineHeight: 1.7 }}>
-              <Bot size={28} style={{ marginBottom: 8, opacity: 0.5 }} />
+              <MessagesSquare size={28} style={{ marginBottom: 8, opacity: 0.5 }} />
               <div>Your AI security assistant.</div>
               <div style={{ fontSize: 11 }}>Send a request from Proxy → “AI Analyze”, or ask anything about the traffic you're testing.</div>
             </div>
@@ -149,7 +149,7 @@ function MessageBubble({ role, content, streaming }: { role: string; content: st
   const isUser = role === 'user'
   return (
     <div className="fade-in" style={{ display: 'flex', gap: 10, alignSelf: isUser ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
-      {!isUser && <Bot size={16} color="var(--accent-primary)" style={{ marginTop: 4, flexShrink: 0 }} />}
+      {!isUser && <MessagesSquare size={16} color="var(--accent-primary)" style={{ marginTop: 4, flexShrink: 0 }} />}
       <div
         className="panel"
         style={{

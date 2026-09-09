@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Play, Plus, Crosshair, X } from 'lucide-react'
+import { Play, Plus, Crosshair, Pickaxe, X } from 'lucide-react'
 import { useRepeaterStore } from '../../stores/repeaterStore'
 import { useIntruderStore } from '../../stores/intruderStore'
 import { RequestEditor } from './RequestEditor'
@@ -107,6 +107,18 @@ export function RepeaterView() {
                     }}
                   >
                     <Crosshair size={11} /> Intruder
+                  </button>
+                  <button
+                    className="btn ghost sm"
+                    title="Mine hidden parameters & headers on this request (Hpere)"
+                    onClick={async () => {
+                      const raw = rawEdits[active.id] ?? rawOf(active)
+                      const { usePluginStore } = await import('../../stores/pluginStore')
+                      void usePluginStore.getState().start('hpere', { kind: 'raw', raw_request: raw })
+                      window.location.hash = '#/plugins'
+                    }}
+                  >
+                    <Pickaxe size={11} /> Hpere
                   </button>
                   <button className="btn sm primary" disabled={sending} onClick={() => void send(active.id)} title="Ctrl+Enter">
                     <Play size={11} />

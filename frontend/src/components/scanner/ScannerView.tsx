@@ -457,6 +457,9 @@ function FindingDetail({ finding }: { finding: Finding }) {
               ⛏ Run Hpere
             </button>
           )}
+          <button className="btn sm" title="Locate this request's site in the Target tree" onClick={() => { window.location.hash = '#/target' }}>
+            🌳 View in Target
+          </button>
         </div>
       </section>
     </div>

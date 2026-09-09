@@ -3,26 +3,27 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  /* Backgrounds */
-  --bg-primary: #0a0a0f;
-  --bg-secondary: #12121a;
-  --bg-tertiary: #1a1a2e;
-  --bg-hover: #22223a;
-  --bg-active: #2a2a4a;
+  /* Backgrounds — deep blue-violet night with layered depth */
+  --bg-primary: #0b0d13;
+  --bg-secondary: #111420;
+  --bg-tertiary: #181d2c;
+  --bg-hover: #1f2536;
+  --bg-active: #273048;
 
   /* Borders */
-  --border-primary: #2a2a3e;
-  --border-active: #4a4a6e;
+  --border-primary: #232a3c;
+  --border-active: #41507a;
 
   /* Text */
-  --text-primary: #e8e8f0;
-  --text-secondary: #8888a8;
-  --text-muted: #555570;
+  --text-primary: #eceff7;
+  --text-secondary: #96a0ba;
+  --text-muted: #5e6780;
 
   /* Accents */
-  --accent-primary: #6c5ce7;
-  --accent-secondary: #00cec9;
-  --accent-glow: rgba(108, 92, 231, 0.3);
+  --accent-primary: #7c6cf0;
+  --accent-secondary: #2dd4c8;
+  --accent-glow: rgba(124, 108, 240, 0.32);
+  --accent-grad: linear-gradient(135deg, #7c6cf0 0%, #4f9cf9 100%);
 
   /* Severity */
   --severity-critical: #ff3838;
@@ -109,11 +110,11 @@ button { font-family: inherit; }
 .btn:active { transform: scale(0.97); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 .btn.primary {
-  background: var(--accent-primary);
-  border-color: var(--accent-primary);
+  background: var(--accent-grad);
+  border-color: transparent;
   color: #fff;
 }
-.btn.primary:hover { box-shadow: 0 0 12px var(--accent-glow); background: #7d6ff0; }
+.btn.primary:hover { box-shadow: 0 0 14px var(--accent-glow); filter: brightness(1.08); }
 .btn.danger { background: rgba(255, 56, 56, 0.12); border-color: rgba(255, 56, 56, 0.4); color: var(--severity-critical); }
 .btn.danger:hover { background: rgba(255, 56, 56, 0.2); }
 .btn.ghost { background: transparent; }
@@ -132,7 +133,7 @@ button { font-family: inherit; }
 }
 
 .panel {
-  background: var(--bg-secondary);
+  background: linear-gradient(180deg, #121627 0%, #10131d 100%);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
 }

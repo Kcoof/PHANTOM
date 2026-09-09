@@ -81,6 +81,12 @@ export function RequestTable() {
         },
       },
       {
+        label: 'Plugins ▸ all plugins…',
+        onClick: () => {
+          window.location.hash = '#/plugins'
+        },
+      },
+      {
         label: 'Scan this request',
         onClick: async () => {
           try {

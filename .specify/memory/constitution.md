@@ -1,8 +1,11 @@
 <!--
 Sync Impact Report
-- Version change: (none) → 1.0.0
-- Modified principles: N/A (initial ratification)
-- Added sections: Core Principles (I–VII), Security & Ethical Constraints, Development Workflow & Quality Gates, Governance
+- Version change: 1.0.0 → 1.1.0
+- Modified principles: IV (Premium Dark UI) — palette refreshed by owner request:
+  deeper blue-violet layered backgrounds, gradient primary accents; token names
+  unchanged so the "exact tokens" rule now refers to the refreshed set in
+  frontend/src/index.css.
+- Added sections: none
 - Removed sections: none
 - Follow-up TODOs: none
 -->
@@ -94,4 +97,4 @@ No telemetry or traffic leaves the operator's machine without explicit opt-in.
 - All reviews MUST verify constitution compliance, notably Principles I, II, and V.
 - Runtime development guidance lives in `specs/<feature>/plan.md` and `tasks.md`.
 
-**Version**: 1.0.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-06
+**Version**: 1.1.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-09

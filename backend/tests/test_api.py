@@ -578,3 +578,141 @@ def test_hpere_out_of_scope_rejected(client):
     run = client.get(f"/api/plugins/runs/{r.json()['run_id']}").json()
     assert run["status"] == "failed"
     assert "scope" in (run.get("error") or "")
+
+
+# --- spec 007: cors-hunter / method-probe / path-probe ------------------------------
+
+def _wait_run(client, run_id, tries=120):
+    for _ in range(tries):
+        time.sleep(0.25)
+        run = client.get(f"/api/plugins/runs/{run_id}").json()
+        if run["status"] in ("completed", "failed", "stopped"):
+            return run
+    return run
+
+
+def test_cors_hunter_finds_reflection(client):
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            origin = self.headers.get("Origin", "")
+            body = b'{"data":"ok"}'
+            self.send_response(200)
+            if origin.endswith(".example") or origin == "null" or origin.startswith("http://"):
+                self.send_header("Access-Control-Allow-Origin", origin)  # vulnerable reflect
+                self.send_header("Access-Control-Allow-Credentials", "true")
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    port = server.server_address[1]
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    client.post("/api/settings/scope", json={"rule_type": "include", "host_pattern": "127.0.0.1"})
+    _seed_body("{}", f"http://127.0.0.1:{port}/api/data", "/api/data")
+    entry = client.get("/api/history?search=api/data").json()["items"][0]
+    try:
+        rid = client.post("/api/plugins/cors-hunter/run",
+                          json={"context": {"kind": "request", "history_id": entry["id"]}}).json()["run_id"]
+        run = _wait_run(client, rid)
+        assert run["status"] == "completed", run.get("error")
+        results = client.get(f"/api/plugins/runs/{rid}/results").json()
+        labels = {r["data"]["label"] for r in results if r["kind"] == "cors"}
+        assert labels, "reflection probes should hit"
+        assert any(l in ("evil origin", "null origin", "http downgrade") for l in labels)
+    finally:
+        server.shutdown()
+
+
+def test_method_probe_flags_verb_tampering(client):
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    class Handler(BaseHTTPRequestHandler):
+        def _serve(self, body, extra=()):
+            self.send_response(200)
+            for k, v in extra:
+                self.send_header(k, v)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_GET(self):
+            self._serve(b'{"ok":true}')
+
+        def do_TRACE(self):
+            self._serve(b"TRACE /x HTTP/1.1\r\nX-Header: reflected")
+
+        def do_PUT(self):
+            self._serve(b'{"saved":true}')
+
+        def do_OPTIONS(self):
+            self._serve(b"", extra=[("Allow", "GET, PUT, DELETE, TRACE")])
+
+        def log_message(self, *args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    port = server.server_address[1]
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    client.post("/api/settings/scope", json={"rule_type": "include", "host_pattern": "127.0.0.1"})
+    _seed_body("{}", f"http://127.0.0.1:{port}/item", "/item")
+    entry = client.get("/api/history?search=/item").json()["items"][0]
+    try:
+        rid = client.post("/api/plugins/method-probe/run",
+                          json={"context": {"kind": "request", "history_id": entry["id"]}}).json()["run_id"]
+        run = _wait_run(client, rid)
+        assert run["status"] == "completed", run.get("error")
+        results = client.get(f"/api/plugins/runs/{rid}/results").json()
+        titles = " | ".join(r["data"]["title"] for r in results if r["kind"] == "method")
+        assert "TRACE" in titles
+        assert "PUT" in titles
+    finally:
+        server.shutdown()
+
+
+def test_path_probe_finds_git_and_env(client):
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/.git/config":
+                body = b"[core]\n\trepositoryformatversion = 0"
+            elif self.path == "/.env":
+                body = b"APP_ENV=production\nDB_PASSWORD=s3cret\nMAIL_HOST=smtp.internal"
+            else:
+                self.send_response(404)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    port = server.server_address[1]
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    client.post("/api/settings/scope", json={"rule_type": "include", "host_pattern": "127.0.0.1"})
+    _seed_body("{}", f"http://127.0.0.1:{port}/site", "/site")
+    entry = client.get("/api/history?search=/site").json()["items"][0]
+    try:
+        rid = client.post("/api/plugins/path-probe/run",
+                          json={"context": {"kind": "request", "history_id": entry["id"]}}).json()["run_id"]
+        run = _wait_run(client, rid, tries=200)
+        assert run["status"] == "completed", run.get("error")
+        results = client.get(f"/api/plugins/runs/{rid}/results").json()
+        paths = {r["data"]["path"] for r in results if r["kind"] == "path"}
+        assert {"/.git/config", "/.env"} <= paths, paths
+    finally:
+        server.shutdown()
